@@ -7,7 +7,31 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style id="app-style">
   :root{
-    color-scheme: light dark;
+    color-scheme: dark;
+
+    --bg: #000000;
+    --surface: #121615;
+    --surface-2: #191D1B;
+    --ink: #F2F4F0;
+    --ink-soft: #9AA69C;
+    --line: #2B332C;
+
+    --berkay: #86B4E2;
+    --berkay-soft: #223349;
+    --berkay-ink: #D2E4F6;
+
+    --yagmur: #E794B4;
+    --yagmur-soft: #3A2530;
+    --yagmur-ink: #F5D6E4;
+
+    --common: #DDAE5E;
+    --common-soft: #3A2E17;
+    --common-ink: #F2DBA8;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.5), 0 10px 26px -14px rgba(0,0,0,.7);
+  }
+  :root[data-theme="light"]{
+    color-scheme: light;
 
     --bg: #F2F4F0;
     --surface: #FFFFFF;
@@ -29,52 +53,6 @@
     --common-ink: #7A5316;
 
     --shadow: 0 1px 2px rgba(20,26,20,.06), 0 10px 26px -14px rgba(20,26,20,.22);
-  }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --bg: #171B18;
-      --surface: #1E2420;
-      --surface-2: #222923;
-      --ink: #EAEDE8;
-      --ink-soft: #99A69C;
-      --line: #2B332C;
-
-      --berkay: #86B4E2;
-      --berkay-soft: #223349;
-      --berkay-ink: #D2E4F6;
-
-      --yagmur: #E794B4;
-      --yagmur-soft: #3A2530;
-      --yagmur-ink: #F5D6E4;
-
-      --common: #DDAE5E;
-      --common-soft: #3A2E17;
-      --common-ink: #F2DBA8;
-
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 26px -14px rgba(0,0,0,.5);
-    }
-  }
-  :root[data-theme="dark"]{
-    --bg: #171B18;
-    --surface: #1E2420;
-    --surface-2: #222923;
-    --ink: #EAEDE8;
-    --ink-soft: #99A69C;
-    --line: #2B332C;
-
-    --berkay: #86B4E2;
-    --berkay-soft: #223349;
-    --berkay-ink: #D2E4F6;
-
-    --yagmur: #E794B4;
-    --yagmur-soft: #3A2530;
-    --yagmur-ink: #F5D6E4;
-
-    --common: #DDAE5E;
-    --common-soft: #3A2E17;
-    --common-ink: #F2DBA8;
-
-    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 26px -14px rgba(0,0,0,.5);
   }
 
   *{ box-sizing: border-box; }
@@ -373,9 +351,29 @@
     color: var(--ink-soft);
     text-align: center;
   }
+
+  .dutch-badge{
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 50;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 11.5px;
+    font-style: italic;
+    color: var(--ink-soft);
+    box-shadow: var(--shadow);
+    max-width: calc(100vw - 24px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 </style>
 </head>
 <body>
+<div class="dutch-badge" title="Dutch van der Linde">🤠 “I got a plan.” —Dutch</div>
 <div class="wrap">
   <div id="app"></div>
 </div>
@@ -405,6 +403,10 @@
   var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+  // The program runs 28 Sep through the end of 2026 — matches the spreadsheet's range.
+  var PROGRAM_START = '2026-09-28';
+  var PROGRAM_END = '2026-12-31';
+
   var state = readInitialState();
   var readOnly = false;
   var syncState = SYNC_URL ? 'connecting' : 'local';
@@ -417,7 +419,7 @@
     } catch (e) {}
     if (!parsed || typeof parsed !== 'object') parsed = { completions: {} };
     if (!parsed.completions) parsed.completions = {};
-    if (!parsed.startDate) parsed.startDate = isoDate(new Date());
+    parsed.startDate = PROGRAM_START;
     return parsed;
   }
 
@@ -497,18 +499,23 @@
     return statsForRange(monday, sunday);
   }
 
-  function allTimeStats(){
-    var start = new Date(state.startDate + 'T00:00:00');
+  // Never counts past the program's end, even if the site stays open into next year.
+  function programCappedToday(){
     var today = new Date();
     today.setHours(0, 0, 0, 0);
-    return statsForRange(start, today);
+    var end = new Date(PROGRAM_END + 'T00:00:00');
+    return today > end ? end : today;
+  }
+
+  function allTimeStats(){
+    var start = new Date(state.startDate + 'T00:00:00');
+    return statsForRange(start, programCappedToday());
   }
 
   // The joint "together" score: only rises when BOTH of them checked in for that session.
   function togetherStats(){
     var start = new Date(state.startDate + 'T00:00:00');
-    var today = new Date();
-    today.setHours(0, 0, 0, 0);
+    var today = programCappedToday();
     var total = 0, done = 0;
     var cursor = new Date(start);
     while (cursor <= today){
@@ -631,8 +638,13 @@
 
   function bodyHTML(){
     var today = new Date();
-    var monday = startOfWeek(today);
     var todayISO = isoDate(today);
+    // Card view stays within the program's dates — shows the first week before it starts,
+    // and the last week once it's over, instead of drifting outside 28 Sep – 31 Dec.
+    var startBound = new Date(PROGRAM_START + 'T00:00:00');
+    var endBound = new Date(PROGRAM_END + 'T00:00:00');
+    var effectiveToday = today < startBound ? startBound : (today > endBound ? endBound : today);
+    var monday = startOfWeek(effectiveToday);
     return (
       '<p class="kicker">Weekly language tracker</p>' +
       '<h1>Sprachpaar</h1>' +
