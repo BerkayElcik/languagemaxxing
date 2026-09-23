@@ -711,7 +711,7 @@
 (function(){
   // Paste your deployed Google Apps Script Web App URL here (see apps-script/README.md).
   // Left blank, the tracker still works, but only saves to this one browser.
-  var SYNC_URL = '';
+  var SYNC_URL = 'https://script.google.com/macros/s/AKfycbyvEOljIleejwytQQpaZ3EiPrtD-n84v7ANld2E4KNDZzg_B4Io3Uwryg8KJJI7khfY4w/exec';
 
   var SCHEDULE = [
     [ {id:'mon-reading', time:'06:00–08:00', activity:'Reading', type:'solo', owner:'berkay'},
@@ -1201,7 +1201,15 @@
       .then(function(res){ return res.json(); })
       .then(function(res){
         if (!res.ok){
-          showLoginError(res.error === 'not_allowed' ? 'That email isn’t on the list.' : 'Something went wrong.');
+          var msg = res.error === 'not_allowed' ? 'That email isn’t on the list.'
+            : res.error === 'rate_limited' ? 'Already sent — check your inbox, or wait a minute to resend.'
+            : 'Something went wrong.';
+          showLoginError(msg);
+          if (res.error === 'rate_limited'){
+            pendingEmail = email;
+            document.getElementById('login-step-email').hidden = true;
+            document.getElementById('login-step-code').hidden = false;
+          }
           return;
         }
         pendingEmail = email;

@@ -101,12 +101,23 @@ function doPost(e) {
   return jsonOut_({ ok: false, error: 'unknown_action' });
 }
 
+var CODE_COOLDOWN_MS = 60 * 1000; // don't let one email trigger a new code more than once a minute
+
 function requestCode_(body) {
   var email = String(body.email || '').toLowerCase().trim();
   if (!ALLOWED[email]) return jsonOut_({ ok: false, error: 'not_allowed' });
+  var sheet = loginCodesSheet_();
+  var rows = sheet.getDataRange().getValues();
+  for (var i = rows.length - 1; i >= 1; i--) {
+    if (rows[i][0] === email) {
+      var requestedAt = new Date(rows[i][2]).getTime() - 10 * 60 * 1000; // ExpiresAt was set 10 min after the request
+      if (Date.now() - requestedAt < CODE_COOLDOWN_MS) return jsonOut_({ ok: false, error: 'rate_limited' });
+      break;
+    }
+  }
   var code = String(Math.floor(1000 + Math.random() * 9000));
   var expires = new Date(Date.now() + 10 * 60 * 1000);
-  loginCodesSheet_().appendRow([email, code, expires]);
+  sheet.appendRow([email, code, expires]);
   MailApp.sendEmail(email, 'Your Sprachpaar sign-in code', 'Your code is: ' + code + '\n\nIt expires in 10 minutes.');
   return jsonOut_({ ok: true });
 }
