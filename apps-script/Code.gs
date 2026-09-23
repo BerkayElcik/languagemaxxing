@@ -57,7 +57,7 @@ function seedBoardDefaults_(sheet) {
   ]);
   sheet.appendRow([
     Utilities.getUuid(), 'shared', 'image', 'plan.jpg',
-    '', '', 15, 10, 0, 1, 'berkay', new Date(),
+    '', '', 15, 70, 0, 1, 'berkay', new Date(),
   ]);
 }
 
@@ -82,7 +82,7 @@ function migrateBoardSheet_(sheet) {
   if (!hasShared) {
     sheet.appendRow([
       Utilities.getUuid(), 'shared', 'image', 'plan.jpg',
-      '', '', 15, 10, 0, 1, 'berkay', new Date(),
+      '', '', 15, 70, 0, 1, 'berkay', new Date(),
     ]);
   }
 }
@@ -139,8 +139,37 @@ function doPost(e) {
   if (action === 'add-item') return addItem_(body);
   if (action === 'update-item') return updateItem_(body);
   if (action === 'remove-item') return removeItem_(body);
+  if (action === 'upload-image') return uploadImage_(body);
 
   return jsonOut_({ ok: false, error: 'unknown_action' });
+}
+
+var MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB
+
+function uploadsFolder_() {
+  var folders = DriveApp.getFoldersByName('Sprachpaar Uploads');
+  if (folders.hasNext()) return folders.next();
+  return DriveApp.createFolder('Sprachpaar Uploads');
+}
+
+// Saves a photo picked from someone's device (sent as base64) to Drive and returns a
+// URL the board can hotlink as an <img src>.
+function uploadImage_(body) {
+  var person = personForToken_(body.token);
+  if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
+  if (!body.data) return jsonOut_({ ok: false, error: 'missing_data' });
+  var bytes;
+  try {
+    bytes = Utilities.base64Decode(body.data);
+  } catch (err) {
+    return jsonOut_({ ok: false, error: 'bad_data' });
+  }
+  if (bytes.length > MAX_UPLOAD_BYTES) return jsonOut_({ ok: false, error: 'too_large' });
+  var mimeType = body.mimeType || 'image/png';
+  var blob = Utilities.newBlob(bytes, mimeType, 'sticker-' + Utilities.getUuid());
+  var file = uploadsFolder_().createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return jsonOut_({ ok: true, url: 'https://lh3.googleusercontent.com/d/' + file.getId() });
 }
 
 var CODE_COOLDOWN_MS = 60 * 1000; // don't let one email trigger a new code more than once a minute

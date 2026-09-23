@@ -463,25 +463,31 @@
   }
   .auth-btn:hover{ border-color: var(--ink-soft); }
 
-  .page{ position: relative; }
+  /* Normal document flow, side by side with the tracker — the whole page (boards
+     included) scrolls together as one, and grows as tall as its tallest column. */
+  .page{
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 16px;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  @media (max-width: 1020px){
+    .page{ flex-direction: column; align-items: stretch; }
+  }
 
-  /* The side canvases are the page margins themselves — no card, no border,
-     items sit right on the page background, same as the Dutch sticker. */
+  /* No card, no border — items sit right on the page background, like the Dutch
+     sticker did. Height grows to fit whatever's been placed (see fitBoardHeight). */
   .side-canvas{
     position: relative;
-    min-height: 120px;
+    flex: none;
+    width: 260px;
+    min-height: 320px;
     touch-action: none;
   }
-  @media (min-width: 1100px){
-    .side-canvas{
-      position: fixed;
-      top: 0;
-      bottom: 0;
-      width: calc((100vw - 740px) / 2);
-      min-height: 0;
-    }
-    .side-canvas.side-left{ left: 0; }
-    .side-canvas.side-right{ right: 0; }
+  @media (max-width: 1020px){
+    .side-canvas{ width: 100%; min-height: 160px; }
   }
 
   .side-add{
@@ -1336,9 +1342,11 @@
     return null;
   }
 
+  // X stays a percentage of the board's fixed width; Y is pixels from the top, so the
+  // board can grow taller than one screenful instead of squeezing everything into it.
   function itemStyle(item){
     var scale = item.scale || 1;
-    return 'left:' + item.x + '%; top:' + item.y + '%; transform: translate(-50%, -50%) rotate(' + item.rot + 'deg) scale(' + scale + ');';
+    return 'left:' + item.x + '%; top:' + item.y + 'px; transform: translate(-50%, -50%) rotate(' + item.rot + 'deg) scale(' + scale + ');';
   }
 
   function boardItemHTML(item, canEdit){
@@ -1411,6 +1419,20 @@
       (audioItems.length ? '<div class="music-list">' + audioItems.map(function(it){ return audioItemHTML(it, editableFor(it)); }).join('') + '</div>' : '') +
       visualItems.map(function(it){ return boardItemHTML(it, editableFor(it)); }).join('') +
       (visualItems.length === 0 ? '<div class="board-empty">' + (canEdit ? 'Add an image, text, or music above.' : '') + '</div>' : '');
+    fitBoardHeight(el);
+  }
+
+  // Grows the canvas to enclose whatever's been placed on it, instead of clipping to
+  // one screenful — the whole page (and its scrollbar) then reflects the real content.
+  function fitBoardHeight(el){
+    if (!el) return;
+    var containerTop = el.getBoundingClientRect().top;
+    var maxBottom = 0;
+    el.querySelectorAll('.board-item, .music-list').forEach(function(child){
+      var bottom = child.getBoundingClientRect().bottom - containerTop;
+      if (bottom > maxBottom) maxBottom = bottom;
+    });
+    el.style.minHeight = Math.max(320, maxBottom + 100) + 'px';
   }
 
   function renderBoards(){
@@ -1434,6 +1456,43 @@
     fetch(SYNC_URL, { method: 'POST', body: JSON.stringify({ action: 'add-item', token: session.token, type: type, content: content }) })
       .then(function(res){ return res.json(); })
       .then(function(res){ if (res.ok) loadBoard(); });
+  }
+
+  var MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+  function pickImageFile(){
+    if (!session) return;
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.addEventListener('change', function(){
+      var file = input.files && input.files[0];
+      if (!file) return;
+      if (file.size > MAX_UPLOAD_BYTES){
+        alert('That image is too big — please pick one under 5MB.');
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function(){
+        var base64 = String(reader.result).split(',')[1];
+        uploadImage(file.type || 'image/png', base64);
+      };
+      reader.readAsDataURL(file);
+    });
+    input.click();
+  }
+
+  function uploadImage(mimeType, base64){
+    fetch(SYNC_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'upload-image', token: session.token, mimeType: mimeType, data: base64 }),
+    })
+      .then(function(res){ return res.json(); })
+      .then(function(res){
+        if (res.ok) addBoardItem('image', res.url);
+        else alert('Upload failed — try a different photo.');
+      })
+      .catch(function(){ alert('Upload failed — check your connection and try again.'); });
   }
 
   function saveBoardItem(item){
@@ -1479,9 +1538,9 @@
       if (!item) return;
       var rect = surfaceEl.getBoundingClientRect();
       var centerX = rect.left + (item.x / 100) * rect.width;
-      var centerY = rect.top + (item.y / 100) * rect.height;
+      var centerY = rect.top + item.y;
       dragState = {
-        itemEl: itemEl, item: item, rect: rect,
+        itemEl: itemEl, item: item, rect: rect, surfaceEl: surfaceEl,
         mode: isRotateHandle ? 'rotate' : isResizeHandle ? 'resize' : 'move',
         centerX: centerX, centerY: centerY,
         startScale: item.scale || 1,
@@ -1496,9 +1555,9 @@
       var item = dragState.item;
       if (dragState.mode === 'move'){
         var xPct = ((e.clientX - dragState.rect.left) / dragState.rect.width) * 100;
-        var yPct = ((e.clientY - dragState.rect.top) / dragState.rect.height) * 100;
+        var yPx = e.clientY - dragState.rect.top;
         item.x = Math.max(6, Math.min(94, xPct));
-        item.y = Math.max(8, Math.min(92, yPct));
+        item.y = Math.max(20, Math.min(6000, yPx));
       } else if (dragState.mode === 'rotate'){
         var angle = Math.atan2(e.clientY - dragState.centerY, e.clientX - dragState.centerX) * 180 / Math.PI + 90;
         item.rot = Math.round(angle);
@@ -1508,15 +1567,18 @@
         item.scale = Math.round(item.scale * 100) / 100;
       }
       dragState.itemEl.style.left = item.x + '%';
-      dragState.itemEl.style.top = item.y + '%';
+      dragState.itemEl.style.top = item.y + 'px';
       dragState.itemEl.style.transform = 'translate(-50%, -50%) rotate(' + item.rot + 'deg) scale(' + (item.scale || 1) + ')';
+      fitBoardHeight(dragState.surfaceEl);
     });
 
     document.addEventListener('pointerup', function(){
       if (!dragState) return;
       var item = dragState.item;
+      var surfaceEl = dragState.surfaceEl;
       dragState = null;
       saveBoardItem(item);
+      fitBoardHeight(surfaceEl);
     });
 
     document.addEventListener('blur', function(e){
@@ -1598,8 +1660,7 @@
       if (addBtn){
         var type = addBtn.dataset.add;
         if (type === 'image'){
-          var url = window.prompt('Paste an image URL:');
-          if (url && url.trim()) addBoardItem('image', url.trim());
+          pickImageFile();
         } else if (type === 'audio'){
           var murl = window.prompt('Paste a direct audio file URL (mp3/ogg):');
           if (murl && murl.trim()) addBoardItem('audio', murl.trim());
