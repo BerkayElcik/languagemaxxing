@@ -90,6 +90,50 @@
     letter-spacing: -.01em;
     text-wrap: balance;
   }
+  .view-toggle{
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .view-toggle-btn{
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .view-toggle-btn.active{
+    background: var(--common);
+    color: #171310;
+    border-color: var(--common);
+  }
+  .view-toggle-btn:not(.active):hover{ border-color: var(--ink-soft); color: var(--ink); }
+
+  .week-list{ display: flex; flex-direction: column; gap: 28px; }
+  .week-block-head{
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .week-block-label{
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .week-block.current .week-block-label .eyebrow{ margin-left: 6px; }
+  .week-block-pct{
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
   .week-nav{
     display: flex;
     align-items: center;
@@ -393,24 +437,6 @@
     text-align: center;
   }
 
-  .dutch-badge{
-    position: fixed;
-    top: 12px;
-    left: 12px;
-    z-index: 50;
-    width: 120px;
-    line-height: 0;
-    border-radius: 14px;
-    overflow: hidden;
-    border: 1px solid var(--line);
-    box-shadow: var(--shadow);
-  }
-  .dutch-photo{
-    width: 100%;
-    height: auto;
-    display: block;
-  }
-
   .auth-bar{
     position: fixed;
     top: 12px;
@@ -681,9 +707,6 @@
 </style>
 </head>
 <body>
-<div class="dutch-badge" title="I’ve got a plan — Dutch van der Linde">
-  <img class="dutch-photo" src="plan.jpg" alt="Dutch van der Linde: I've got a plan">
-</div>
 <div class="auth-bar" id="auth-bar"></div>
 <div class="page">
   <div class="side-canvas side-left" id="board-left"></div>
@@ -1010,16 +1033,26 @@
 
   // Card view stays within the program's dates — the first week before it starts,
   // the last week once it's over, instead of drifting outside 28 Sep – 31 Dec.
+  // The lower bound is whichever is earlier: the program's own start, or today's real
+  // week. Before 28 Sep that lets you reach (and default to) the current real week —
+  // otherwise every visible day would be future-locked with nothing checkable yet. Once
+  // today catches up to the program start this collapses back to PROGRAM_START on its own.
+  function minBoundMonday(){
+    var progMin = startOfWeek(new Date(PROGRAM_START + 'T00:00:00'));
+    var todayMin = startOfWeek(new Date());
+    return todayMin < progMin ? todayMin : progMin;
+  }
+
   function baseMonday(){
     var today = new Date();
-    var startBound = new Date(PROGRAM_START + 'T00:00:00');
+    var startBound = minBoundMonday();
     var endBound = new Date(PROGRAM_END + 'T00:00:00');
     var effectiveToday = today < startBound ? startBound : (today > endBound ? endBound : today);
     return startOfWeek(effectiveToday);
   }
 
   function clampMonday(m){
-    var minM = startOfWeek(new Date(PROGRAM_START + 'T00:00:00'));
+    var minM = minBoundMonday();
     var maxM = startOfWeek(new Date(PROGRAM_END + 'T00:00:00'));
     if (m < minM) return minM;
     if (m > maxM) return maxM;
@@ -1043,7 +1076,7 @@
   }
 
   function weekNavHTML(monday){
-    var minM = startOfWeek(new Date(PROGRAM_START + 'T00:00:00'));
+    var minM = minBoundMonday();
     var maxM = startOfWeek(new Date(PROGRAM_END + 'T00:00:00'));
     var atMin = monday.getTime() === minM.getTime();
     var atMax = monday.getTime() === maxM.getTime();
@@ -1057,6 +1090,59 @@
       '</div>';
   }
 
+  // Per-viewer only — which view (single week vs. the full scroll) you're looking at.
+  var viewMode = 'week';
+
+  function loadViewMode(){
+    try {
+      var v = localStorage.getItem('sprachpaar-view');
+      if (v === 'week' || v === 'all') viewMode = v;
+    } catch (e) {}
+  }
+
+  function setViewMode(mode){
+    viewMode = mode;
+    try { localStorage.setItem('sprachpaar-view', mode); } catch (e) {}
+    renderApp();
+  }
+
+  function viewToggleHTML(){
+    return '<div class="view-toggle">' +
+      '<button type="button" class="view-toggle-btn' + (viewMode === 'week' ? ' active' : '') + '" data-view="week">Week</button>' +
+      '<button type="button" class="view-toggle-btn' + (viewMode === 'all' ? ' active' : '') + '" data-view="all">All weeks</button>' +
+      '</div>';
+  }
+
+  function programWeeks(){
+    var cursor = minBoundMonday();
+    var end = startOfWeek(new Date(PROGRAM_END + 'T00:00:00'));
+    var weeks = [];
+    while (cursor <= end){
+      weeks.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 7);
+    }
+    return weeks;
+  }
+
+  function weekBlockHTML(monday, todayISO){
+    var s = weekStats(monday);
+    var pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
+    var isCurrent = monday.getTime() === baseMonday().getTime();
+    return '<div class="week-block' + (isCurrent ? ' current' : '') + '">' +
+      '<div class="week-block-head">' +
+      '<span class="week-block-label">' + weekLabel(monday) + (isCurrent ? ' <span class="eyebrow">This week</span>' : '') + '</span>' +
+      '<span class="week-block-pct">' + s.done + '/' + s.total + ' · ' + pct + '%</span>' +
+      '</div>' +
+      '<div class="day-grid">' + gridHTML(monday, todayISO) + '</div>' +
+      '</div>';
+  }
+
+  function allWeeksHTML(todayISO){
+    return '<div class="week-list">' +
+      programWeeks().map(function(monday){ return weekBlockHTML(monday, todayISO); }).join('') +
+      '</div>';
+  }
+
   function bodyHTML(){
     var today = new Date();
     var todayISO = isoDate(today);
@@ -1065,11 +1151,12 @@
     return (
       '<p class="kicker">Weekly language tracker</p>' +
       '<h1>Sprachpaar</h1>' +
-      weekNavHTML(monday) +
+      viewToggleHTML() +
       (readOnly ? '<div class="banner">You’re viewing a read-only copy — changes here won’t be saved.</div>' : '') +
       '<div class="stats">' + streakTileHTML('berkay', monday) + streakTileHTML('yagmur', monday) + '</div>' +
-      progressHTML(monday) +
-      '<div class="day-grid">' + gridHTML(monday, todayISO) + '</div>' +
+      (viewMode === 'week'
+        ? weekNavHTML(monday) + progressHTML(monday) + '<div class="day-grid">' + gridHTML(monday, todayISO) + '</div>'
+        : allWeeksHTML(todayISO)) +
       '<p class="footnote">Tap a task to mark it done.</p>' +
       '<p class="sync-note">' + syncNoteHTML() + '</p>'
     );
@@ -1310,14 +1397,19 @@
     }
     var person = side === 'left' ? 'berkay' : 'yagmur';
     var canEdit = !!(session && session.person === person);
-    var items = boardItems.filter(function(it){ return it.side === side; });
+    // Shared items (the Dutch sticker) show up in the left canvas and can be
+    // moved by whichever of the two of you is signed in, not just Berkay.
+    var items = boardItems.filter(function(it){
+      return it.side === side || (it.side === 'shared' && side === 'left');
+    });
+    function editableFor(it){ return it.side === 'shared' ? !!session : canEdit; }
     var audioItems = items.filter(function(it){ return it.type === 'audio'; });
     var visualItems = items.filter(function(it){ return it.type !== 'audio'; });
     el.className = 'side-canvas side-' + side + ' board-surface';
     el.dataset.side = side;
     el.innerHTML = sideAddHTML(side, canEdit) +
-      (audioItems.length ? '<div class="music-list">' + audioItems.map(function(it){ return audioItemHTML(it, canEdit); }).join('') + '</div>' : '') +
-      visualItems.map(function(it){ return boardItemHTML(it, canEdit); }).join('') +
+      (audioItems.length ? '<div class="music-list">' + audioItems.map(function(it){ return audioItemHTML(it, editableFor(it)); }).join('') + '</div>' : '') +
+      visualItems.map(function(it){ return boardItemHTML(it, editableFor(it)); }).join('') +
       (visualItems.length === 0 ? '<div class="board-empty">' + (canEdit ? 'Add an image, text, or music above.' : '') + '</div>' : '');
   }
 
@@ -1488,6 +1580,7 @@
 
   function boot(){
     loadSession();
+    loadViewMode();
     renderApp();
     renderAuthBar();
     renderBoards();
@@ -1531,6 +1624,9 @@
         }
         return;
       }
+
+      var viewBtn = e.target.closest('[data-view]');
+      if (viewBtn){ setViewMode(viewBtn.dataset.view); return; }
 
       var navBtn = e.target.closest('[data-nav]');
       if (navBtn){

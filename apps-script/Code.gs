@@ -32,7 +32,8 @@ function loginCodesSheet_() { return sheet_('LoginCodes', ['Email', 'Code', 'Exp
 function sessionsSheet_() { return sheet_('Sessions', ['Token', 'Email', 'Person', 'CreatedAt']); }
 
 // Seeded once, the first time this sheet is created: Yağmur's opening track
-// (Dvořák, Serenade for Strings in E, Op. 22 — II. Tempo di Valse; CC BY-SA 4.0, Wikimedia Commons).
+// (Dvořák, Serenade for Strings in E, Op. 22 — II. Tempo di Valse; CC BY-SA 4.0, Wikimedia Commons)
+// and a shared Dutch van der Linde sticker either of you can move/rotate/resize/remove.
 function boardSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('BoardItems');
@@ -43,6 +44,10 @@ function boardSheet_() {
       Utilities.getUuid(), 'right', 'audio',
       'https://upload.wikimedia.org/wikipedia/commons/c/c2/Dvorak_String_Serenade_II_Tempo_di_Valse.ogg',
       '', '', 50, 50, 0, 1, 'yagmur', new Date(),
+    ]);
+    sheet.appendRow([
+      Utilities.getUuid(), 'shared', 'image', 'plan.jpg',
+      '', '', 15, 10, 0, 1, 'berkay', new Date(),
     ]);
   }
   return sheet;
@@ -58,6 +63,9 @@ function personForToken_(token) {
 }
 
 function sideForPerson_(person) { return person === 'berkay' ? 'left' : 'right'; }
+
+// 'shared' items (like the Dutch sticker) can be moved/edited by either signed-in person.
+function canEditItemSide_(itemSide, person) { return itemSide === 'shared' || itemSide === sideForPerson_(person); }
 
 // ---------- reads ----------
 
@@ -186,7 +194,7 @@ function updateItem_(body) {
   var sheet = boardSheet_();
   var rowIndex = findItemRow_(sheet, body.id);
   if (rowIndex === -1) return jsonOut_({ ok: false, error: 'not_found' });
-  if (sheet.getRange(rowIndex, 2).getValue() !== sideForPerson_(person)) {
+  if (!canEditItemSide_(sheet.getRange(rowIndex, 2).getValue(), person)) {
     return jsonOut_({ ok: false, error: 'not_your_side' });
   }
   if (body.content != null) sheet.getRange(rowIndex, 4).setValue(body.content);
@@ -206,7 +214,7 @@ function removeItem_(body) {
   var sheet = boardSheet_();
   var rowIndex = findItemRow_(sheet, body.id);
   if (rowIndex === -1) return jsonOut_({ ok: false, error: 'not_found' });
-  if (sheet.getRange(rowIndex, 2).getValue() !== sideForPerson_(person)) {
+  if (!canEditItemSide_(sheet.getRange(rowIndex, 2).getValue(), person)) {
     return jsonOut_({ ok: false, error: 'not_your_side' });
   }
   sheet.deleteRow(rowIndex);
