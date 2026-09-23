@@ -38,11 +38,11 @@ function boardSheet_() {
   var sheet = ss.getSheetByName('BoardItems');
   if (!sheet) {
     sheet = ss.insertSheet('BoardItems');
-    sheet.appendRow(['Id', 'Side', 'Type', 'Content', 'Color', 'Font', 'X', 'Y', 'Rot', 'AddedBy', 'UpdatedAt']);
+    sheet.appendRow(['Id', 'Side', 'Type', 'Content', 'Color', 'Font', 'X', 'Y', 'Rot', 'Scale', 'AddedBy', 'UpdatedAt']);
     sheet.appendRow([
       Utilities.getUuid(), 'right', 'audio',
       'https://upload.wikimedia.org/wikipedia/commons/c/c2/Dvorak_String_Serenade_II_Tempo_di_Valse.ogg',
-      '', '', 50, 50, 0, 'yagmur', new Date(),
+      '', '', 50, 50, 0, 1, 'yagmur', new Date(),
     ]);
   }
   return sheet;
@@ -71,7 +71,7 @@ function doGet(e) {
       var r = data[i];
       items.push({
         id: r[0], side: r[1], type: r[2], content: r[3],
-        color: r[4], font: r[5], x: r[6], y: r[7], rot: r[8],
+        color: r[4], font: r[5], x: r[6], y: r[7], rot: r[8], scale: r[9] || 1,
       });
     }
     return jsonOut_({ items: items });
@@ -167,7 +167,7 @@ function addItem_(body) {
   boardSheet_().appendRow([
     id, side, type, body.content || '', body.color || '#F2DBA8', body.font || 'Public Sans',
     body.x != null ? body.x : 50, body.y != null ? body.y : 50, body.rot != null ? body.rot : 0,
-    person, new Date(),
+    body.scale != null ? body.scale : 1, person, new Date(),
   ]);
   return jsonOut_({ ok: true, id: id, side: side });
 }
@@ -195,7 +195,8 @@ function updateItem_(body) {
   if (body.x != null) sheet.getRange(rowIndex, 7).setValue(body.x);
   if (body.y != null) sheet.getRange(rowIndex, 8).setValue(body.y);
   if (body.rot != null) sheet.getRange(rowIndex, 9).setValue(body.rot);
-  sheet.getRange(rowIndex, 11).setValue(new Date());
+  if (body.scale != null) sheet.getRange(rowIndex, 10).setValue(body.scale);
+  sheet.getRange(rowIndex, 12).setValue(new Date());
   return jsonOut_({ ok: true });
 }
 
