@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sprachpaar</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Caveat:wght@600;700&family=Bungee&family=Playfair+Display:wght@600;700&display=swap">
 <style id="app-style">
   :root{
     color-scheme: dark;
@@ -90,11 +90,46 @@
     letter-spacing: -.01em;
     text-wrap: balance;
   }
-  .week-label{
+  .week-nav{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     margin: 0 0 22px;
+  }
+  .week-nav-center{ text-align: center; min-width: 0; }
+  .week-label{
+    margin: 0;
     color: var(--ink-soft);
     font-size: 13.5px;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .week-nav-btn{
+    flex: none;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+  }
+  .week-nav-btn:hover{ border-color: var(--ink-soft); }
+  .week-nav-btn:disabled{ opacity: .35; cursor: not-allowed; }
+  .week-today-btn{
+    margin-top: 2px;
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--common);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
   }
 
   .banner{
@@ -144,6 +179,12 @@
     font-weight: 500;
     color: var(--ink-soft);
     margin-left: 3px;
+  }
+  .stat-pct{
+    margin: 3px 0 0;
+    font-size: 11px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
   }
 
   .progress-row{
@@ -357,43 +398,315 @@
     top: 12px;
     left: 12px;
     z-index: 50;
+    width: 120px;
+    line-height: 0;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+  }
+  .dutch-photo{
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .auth-bar{
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 50;
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+  .auth-status{
+    font-size: 11.5px;
+    color: var(--ink-soft);
+  }
+  .auth-btn{
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+  .auth-btn:hover{ border-color: var(--ink-soft); }
+
+  .page{
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 16px;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  @media (max-width: 980px){
+    .page{ flex-direction: column; align-items: stretch; }
+  }
+
+  .board{
+    flex: none;
+    width: 220px;
+    min-height: 340px;
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 999px;
-    padding: 4px 12px 4px 4px;
+    border-radius: 14px;
     box-shadow: var(--shadow);
-    max-width: calc(100vw - 24px);
-  }
-  .dutch-photo{
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    object-fit: cover;
-    object-position: 50% 25%;
-    flex: none;
-    display: block;
-  }
-  .dutch-quote{
-    font-size: 11.5px;
-    font-style: italic;
-    color: var(--ink-soft);
-    white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    display: flex;
+    flex-direction: column;
+  }
+  @media (max-width: 980px){
+    .board{ width: 100%; min-height: 220px; }
+  }
+  .board-header{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .board-add{ display: flex; gap: 4px; }
+  .board-add-btn{
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 10.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .board-add-btn:hover{ border-color: var(--ink-soft); }
+  .board-surface{
+    position: relative;
+    flex: 1;
+    min-height: 280px;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(255,255,255,.03), transparent 40%),
+      var(--surface-2);
+    touch-action: none;
+  }
+  .board-item{
+    position: absolute;
+    max-width: 74%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: default;
+  }
+  .board-item.editable{ cursor: grab; }
+  .board-item.editable:active{ cursor: grabbing; }
+  .board-item img{
+    max-width: 100%;
+    max-height: 110px;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    pointer-events: none;
+    user-select: none;
+  }
+  .board-text{
+    font-size: 20px;
+    line-height: 1.2;
+    text-align: center;
+    outline: none;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+  .item-controls{
+    display: none;
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    gap: 3px;
+  }
+  .board-item.editable:hover .item-controls,
+  .board-item.editable:focus-within .item-controls{ display: flex; }
+  .item-btn{
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+  }
+  .item-rotate{ cursor: grab; }
+  .item-remove:hover{ background: var(--yagmur-soft); border-color: var(--yagmur); }
+  .item-text-tools{
+    display: none;
+    gap: 4px;
+    margin-top: 2px;
+  }
+  .board-item.editable:hover .item-text-tools,
+  .board-item.editable:focus-within .item-text-tools{ display: flex; }
+  .item-color{
+    width: 22px; height: 22px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+  }
+  .item-font{
+    font-size: 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--ink);
+    padding: 2px 4px;
+  }
+  .board-empty{
+    padding: 16px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  .music-list{
+    border-bottom: 1px solid var(--line);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .music-row{
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .music-btn{
+    flex: none;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+    font-size: 10px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    padding: 0;
+  }
+  .music-play{ background: var(--common); color: #171310; border-color: var(--common); }
+  .music-remove:hover{ background: var(--yagmur-soft); border-color: var(--yagmur); }
+  .music-seek{
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--common);
+  }
+
+  .login-overlay{
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0,0,0,.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .login-box{
+    width: 100%;
+    max-width: 320px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 20px;
+  }
+  .login-title{
+    margin: 0 0 4px;
+    font-family: "Newsreader", serif;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .login-sub{
+    margin: 0 0 14px;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .login-input{
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 10px;
+    color: var(--ink);
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  .login-btn{
+    width: 100%;
+    border: none;
+    background: var(--common);
+    color: #171310;
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .login-error{
+    margin: 10px 0 0;
+    font-size: 12px;
+    color: var(--yagmur);
+  }
+  .login-cancel{
+    width: 100%;
+    margin-top: 10px;
+    border: none;
+    background: none;
+    color: var(--ink-soft);
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: underline;
   }
 </style>
 </head>
 <body>
-<div class="dutch-badge" title="Dutch van der Linde">
-  <img class="dutch-photo" src="dutch.webp" alt="Dutch van der Linde">
-  <span class="dutch-quote">“I got a plan.” —Dutch</span>
+<div class="dutch-badge" title="I’ve got a plan — Dutch van der Linde">
+  <img class="dutch-photo" src="plan.jpg" alt="Dutch van der Linde: I've got a plan">
 </div>
-<div class="wrap">
-  <div id="app"></div>
+<div class="auth-bar" id="auth-bar"></div>
+<div class="page">
+  <aside class="board" data-side="left" id="board-left"></aside>
+  <div class="wrap">
+    <div id="app"></div>
+  </div>
+  <aside class="board" data-side="right" id="board-right"></aside>
 </div>
+
+<div class="login-overlay" id="login-overlay" hidden>
+  <div class="login-box">
+    <p class="login-title">Sign in</p>
+    <p class="login-sub">Only Berkay and Yağmur can check boxes or edit a board.</p>
+    <div id="login-step-email">
+      <input type="email" id="login-email" class="login-input" placeholder="Your email" autocomplete="email">
+      <button type="button" id="login-send" class="login-btn">Send code</button>
+    </div>
+    <div id="login-step-code" hidden>
+      <input type="text" id="login-code" class="login-input" placeholder="4-digit code" inputmode="numeric" maxlength="4">
+      <button type="button" id="login-verify" class="login-btn">Verify</button>
+    </div>
+    <p id="login-error" class="login-error" hidden></p>
+    <button type="button" id="login-cancel" class="login-cancel">Cancel</button>
+  </div>
+</div>
+
 <script id="app-script">
 (function(){
   // Paste your deployed Google Apps Script Web App URL here (see apps-script/README.md).
@@ -427,6 +740,12 @@
   var state = readInitialState();
   var readOnly = false;
   var syncState = SYNC_URL ? 'connecting' : 'local';
+
+  var FONT_OPTIONS = ['Public Sans', 'Newsreader', 'Caveat', 'Bungee', 'Playfair Display'];
+  var session = null;       // {token, person} — this browser's signed-in identity
+  var boardItems = [];      // stickers/text notes from both boards
+  var dragState = null;
+  var pendingEmail = '';
 
   function readInitialState(){
     var parsed = null;
@@ -548,6 +867,34 @@
     return { total: total, done: done };
   }
 
+  // A person's own completion rate: their solo tasks plus just their own box on
+  // together tasks (unlike statsForRange, which weighs a together task as two).
+  function personStatsForRange(owner, start, end){
+    var total = 0, done = 0;
+    var cursor = new Date(start);
+    while (cursor <= end){
+      var idx = (cursor.getDay() + 6) % 7;
+      var dISO = isoDate(cursor);
+      tasksForOwnerOnDay(idx, owner).forEach(function(t){
+        total++;
+        if (isDoneForOwner(t, dISO, owner)) done++;
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return { total: total, done: done };
+  }
+
+  function personWeekStats(owner, monday){
+    var sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return personStatsForRange(owner, monday, sunday);
+  }
+
+  function personAllTimeStats(owner){
+    var start = new Date(state.startDate + 'T00:00:00');
+    return personStatsForRange(owner, start, programCappedToday());
+  }
+
   function escapeHTML(s){
     return String(s).replace(/[&<>"']/g, function(c){
       return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
@@ -610,13 +957,18 @@
     return out;
   }
 
-  function streakTileHTML(owner){
+  function streakTileHTML(owner, monday){
     var o = OWNERS[owner];
     var streak = computeStreak(owner, new Date());
+    var week = personWeekStats(owner, monday);
+    var all = personAllTimeStats(owner);
+    var weekPct = week.total ? Math.round((week.done / week.total) * 100) : 0;
+    var allPct = all.total ? Math.round((all.done / all.total) * 100) : 0;
     return '<div class="stat owner-' + owner + '">' +
       '<span class="stat-flag">' + o.flag + '</span>' +
       '<div><p class="stat-name">' + o.name + ' · ' + o.lang + '</p>' +
-      '<p class="stat-num">' + streak + '<span class="stat-unit">' + (streak === 1 ? ' day streak' : ' day streak') + '</span></p></div>' +
+      '<p class="stat-num">' + streak + '<span class="stat-unit">' + (streak === 1 ? ' day streak' : ' day streak') + '</span></p>' +
+      '<p class="stat-pct">This week ' + weekPct + '% · All time ' + allPct + '%</p></div>' +
       '</div>';
   }
 
@@ -653,21 +1005,66 @@
     return 'Synced with the shared sheet.';
   }
 
-  function bodyHTML(){
+  // Card view stays within the program's dates — the first week before it starts,
+  // the last week once it's over, instead of drifting outside 28 Sep – 31 Dec.
+  function baseMonday(){
     var today = new Date();
-    var todayISO = isoDate(today);
-    // Card view stays within the program's dates — shows the first week before it starts,
-    // and the last week once it's over, instead of drifting outside 28 Sep – 31 Dec.
     var startBound = new Date(PROGRAM_START + 'T00:00:00');
     var endBound = new Date(PROGRAM_END + 'T00:00:00');
     var effectiveToday = today < startBound ? startBound : (today > endBound ? endBound : today);
-    var monday = startOfWeek(effectiveToday);
+    return startOfWeek(effectiveToday);
+  }
+
+  function clampMonday(m){
+    var minM = startOfWeek(new Date(PROGRAM_START + 'T00:00:00'));
+    var maxM = startOfWeek(new Date(PROGRAM_END + 'T00:00:00'));
+    if (m < minM) return minM;
+    if (m > maxM) return maxM;
+    return m;
+  }
+
+  // Per-viewer only — which week you're browsing, not shared state.
+  var viewedMonday = null;
+
+  function changeWeek(deltaWeeks){
+    var base = viewedMonday || baseMonday();
+    var next = new Date(base);
+    next.setDate(base.getDate() + deltaWeeks * 7);
+    viewedMonday = clampMonday(next);
+    renderApp();
+  }
+
+  function jumpToday(){
+    viewedMonday = baseMonday();
+    renderApp();
+  }
+
+  function weekNavHTML(monday){
+    var minM = startOfWeek(new Date(PROGRAM_START + 'T00:00:00'));
+    var maxM = startOfWeek(new Date(PROGRAM_END + 'T00:00:00'));
+    var atMin = monday.getTime() === minM.getTime();
+    var atMax = monday.getTime() === maxM.getTime();
+    var isCurrent = monday.getTime() === baseMonday().getTime();
+    return '<div class="week-nav">' +
+      '<button type="button" class="week-nav-btn" data-nav="-1" aria-label="Previous week"' + (atMin ? ' disabled' : '') + '>‹</button>' +
+      '<div class="week-nav-center"><p class="week-label">' + weekLabel(monday) + '</p>' +
+      (isCurrent ? '' : '<button type="button" class="week-today-btn" data-nav="today">Jump to today</button>') +
+      '</div>' +
+      '<button type="button" class="week-nav-btn" data-nav="1" aria-label="Next week"' + (atMax ? ' disabled' : '') + '>›</button>' +
+      '</div>';
+  }
+
+  function bodyHTML(){
+    var today = new Date();
+    var todayISO = isoDate(today);
+    if (!viewedMonday) viewedMonday = baseMonday();
+    var monday = viewedMonday;
     return (
       '<p class="kicker">Weekly language tracker</p>' +
       '<h1>Sprachpaar</h1>' +
-      '<p class="week-label">' + weekLabel(monday) + '</p>' +
+      weekNavHTML(monday) +
       (readOnly ? '<div class="banner">You’re viewing a read-only copy — changes here won’t be saved.</div>' : '') +
-      '<div class="stats">' + streakTileHTML('berkay') + streakTileHTML('yagmur') + '</div>' +
+      '<div class="stats">' + streakTileHTML('berkay', monday) + streakTileHTML('yagmur', monday) + '</div>' +
       progressHTML(monday) +
       '<div class="day-grid">' + gridHTML(monday, todayISO) + '</div>' +
       '<p class="footnote">Tap a task to mark it done.</p>' +
@@ -685,12 +1082,13 @@
   }
 
   function saveToServer(key){
-    if (!SYNC_URL) return;
+    if (!SYNC_URL || !session) return;
     fetch(SYNC_URL, {
       method: 'POST',
-      body: JSON.stringify({ key: key, done: !!state.completions[key] }),
+      body: JSON.stringify({ action: 'toggle', token: session.token, key: key, done: !!state.completions[key] }),
     })
-      .then(function(){ syncState = 'synced'; renderApp(); })
+      .then(function(res){ return res.json(); })
+      .then(function(res){ syncState = (res && res.ok) ? 'synced' : 'offline'; renderApp(); })
       .catch(function(){ syncState = 'offline'; renderApp(); });
   }
 
@@ -716,6 +1114,7 @@
 
   function toggleTask(taskId, dateISO){
     if (readOnly) return;
+    if (!session){ openLogin(); return; }
     if (dateISO > isoDate(new Date())) return;
     var key = dateISO + ':' + taskId;
     state.completions[key] = !state.completions[key];
@@ -726,6 +1125,7 @@
 
   function toggleTogether(taskId, dateISO, person){
     if (readOnly) return;
+    if (!session){ openLogin(); return; }
     if (dateISO > isoDate(new Date())) return;
     var key = dateISO + ':' + taskId + ':' + person;
     state.completions[key] = !state.completions[key];
@@ -734,15 +1134,403 @@
     saveToServer(key);
   }
 
-  function boot(){
+  // ---------- auth ----------
+
+  function loadSession(){
+    try {
+      var raw = localStorage.getItem('sprachpaar-session');
+      if (raw) session = JSON.parse(raw);
+    } catch (e) {}
+  }
+
+  function saveSession(){
+    try {
+      if (session) localStorage.setItem('sprachpaar-session', JSON.stringify(session));
+      else localStorage.removeItem('sprachpaar-session');
+    } catch (e) {}
+  }
+
+  function signOut(){
+    session = null;
+    saveSession();
+    renderAuthBar();
     renderApp();
+    renderBoards();
+  }
+
+  function renderAuthBar(){
+    var el = document.getElementById('auth-bar');
+    if (!el) return;
+    if (!SYNC_URL){
+      el.innerHTML = '';
+      return;
+    }
+    if (session){
+      var o = OWNERS[session.person];
+      el.innerHTML = '<span class="auth-status">Signed in as ' + o.name + '</span>' +
+        '<button type="button" id="signout-btn" class="auth-btn">Sign out</button>';
+    } else {
+      el.innerHTML = '<button type="button" id="signin-btn" class="auth-btn">Sign in</button>';
+    }
+  }
+
+  function openLogin(){
+    if (!SYNC_URL) return;
+    document.getElementById('login-overlay').hidden = false;
+    document.getElementById('login-step-email').hidden = false;
+    document.getElementById('login-step-code').hidden = true;
+    document.getElementById('login-error').hidden = true;
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-code').value = '';
+  }
+
+  function closeLogin(){
+    document.getElementById('login-overlay').hidden = true;
+  }
+
+  function showLoginError(msg){
+    var el = document.getElementById('login-error');
+    el.textContent = msg;
+    el.hidden = false;
+  }
+
+  function sendCode(){
+    var email = document.getElementById('login-email').value.trim();
+    if (!email) return;
+    fetch(SYNC_URL, { method: 'POST', body: JSON.stringify({ action: 'request-code', email: email }) })
+      .then(function(res){ return res.json(); })
+      .then(function(res){
+        if (!res.ok){
+          showLoginError(res.error === 'not_allowed' ? 'That email isn’t on the list.' : 'Something went wrong.');
+          return;
+        }
+        pendingEmail = email;
+        document.getElementById('login-step-email').hidden = true;
+        document.getElementById('login-step-code').hidden = false;
+        document.getElementById('login-error').hidden = true;
+      })
+      .catch(function(){ showLoginError('Couldn’t reach the server.'); });
+  }
+
+  function verifyCode(){
+    var code = document.getElementById('login-code').value.trim();
+    if (!code) return;
+    fetch(SYNC_URL, { method: 'POST', body: JSON.stringify({ action: 'verify-code', email: pendingEmail, code: code }) })
+      .then(function(res){ return res.json(); })
+      .then(function(res){
+        if (!res.ok){ showLoginError('Wrong or expired code.'); return; }
+        session = { token: res.token, person: res.person };
+        saveSession();
+        closeLogin();
+        renderAuthBar();
+        renderApp();
+        loadBoard();
+      })
+      .catch(function(){ showLoginError('Couldn’t reach the server.'); });
+  }
+
+  // ---------- board (stickers / fancy text) ----------
+
+  function itemById(id){
+    for (var i = 0; i < boardItems.length; i++){
+      if (boardItems[i].id === id) return boardItems[i];
+    }
+    return null;
+  }
+
+  function boardItemHTML(item, canEdit){
+    var style = 'left:' + item.x + '%; top:' + item.y + '%; transform: translate(-50%, -50%) rotate(' + item.rot + 'deg);';
+    var inner;
+    if (item.type === 'image'){
+      inner = '<img src="' + escapeHTML(item.content) + '" alt="sticker" draggable="false">';
+    } else {
+      inner = '<span class="board-text" contenteditable="' + (canEdit ? 'true' : 'false') + '" spellcheck="false" style="color:' + escapeHTML(item.color) + '; font-family:\'' + escapeHTML(item.font) + '\', sans-serif;">' + escapeHTML(item.content) + '</span>';
+    }
+    var controls = '';
+    if (canEdit){
+      controls += '<div class="item-controls">' +
+        '<button type="button" class="item-btn item-rotate" data-role="rotate" title="Drag to rotate">⟲</button>' +
+        '<button type="button" class="item-btn item-remove" data-role="remove" title="Remove">×</button>' +
+        '</div>';
+      if (item.type === 'text'){
+        controls += '<div class="item-text-tools">' +
+          '<input type="color" class="item-color" value="' + item.color + '" data-role="color" title="Text color">' +
+          '<select class="item-font" data-role="font" title="Font">' +
+          FONT_OPTIONS.map(function(f){ return '<option value="' + f + '"' + (f === item.font ? ' selected' : '') + '>' + f + '</option>'; }).join('') +
+          '</select></div>';
+      }
+    }
+    return '<div class="board-item' + (canEdit ? ' editable' : '') + '" data-id="' + item.id + '" data-type="' + item.type + '" style="' + style + '">' +
+      inner + controls + '</div>';
+  }
+
+  function boardHeaderHTML(side){
+    var person = side === 'left' ? 'berkay' : 'yagmur';
+    var o = OWNERS[person];
+    var canEdit = !!(session && session.person === person);
+    return '<div class="board-header"><span>' + o.flag + ' ' + o.name + '’s board</span>' +
+      (canEdit
+        ? '<div class="board-add">' +
+          '<button type="button" class="board-add-btn" data-add="image" data-side="' + side + '">+ Sticker</button>' +
+          '<button type="button" class="board-add-btn" data-add="text" data-side="' + side + '">+ Text</button>' +
+          '<button type="button" class="board-add-btn" data-add="audio" data-side="' + side + '">+ Music</button>' +
+          '</div>'
+        : '') +
+      '</div>';
+  }
+
+  function audioItemHTML(item, canEdit){
+    var pid = 'audio-' + item.id;
+    return '<div class="music-row" data-id="' + item.id + '">' +
+      '<audio id="' + pid + '" src="' + escapeHTML(item.content) + '" preload="none"></audio>' +
+      '<button type="button" class="music-btn music-play" data-role="play" data-target="' + pid + '" aria-label="Play">▶</button>' +
+      '<button type="button" class="music-btn" data-role="back10" data-target="' + pid + '" aria-label="Back 10 seconds">⏪</button>' +
+      '<input type="range" class="music-seek" data-target="' + pid + '" min="0" max="100" value="0">' +
+      '<button type="button" class="music-btn" data-role="fwd10" data-target="' + pid + '" aria-label="Forward 10 seconds">⏩</button>' +
+      (canEdit ? '<button type="button" class="music-btn music-remove" data-role="remove-audio" data-id="' + item.id + '" aria-label="Remove track">×</button>' : '') +
+      '</div>';
+  }
+
+  function renderBoard(side){
+    var el = document.getElementById('board-' + side);
+    if (!el) return;
+    if (!SYNC_URL){
+      el.innerHTML = '<div class="board-empty">Connect a Sync URL to enable boards.</div>';
+      return;
+    }
+    var person = side === 'left' ? 'berkay' : 'yagmur';
+    var canEdit = !!(session && session.person === person);
+    var items = boardItems.filter(function(it){ return it.side === side; });
+    var audioItems = items.filter(function(it){ return it.type === 'audio'; });
+    var visualItems = items.filter(function(it){ return it.type !== 'audio'; });
+    el.innerHTML = boardHeaderHTML(side) +
+      (audioItems.length ? '<div class="music-list">' + audioItems.map(function(it){ return audioItemHTML(it, canEdit); }).join('') + '</div>' : '') +
+      '<div class="board-surface" data-side="' + side + '">' +
+      visualItems.map(function(it){ return boardItemHTML(it, canEdit); }).join('') +
+      (visualItems.length === 0 ? '<div class="board-empty">' + (canEdit ? 'Add a sticker or some text.' : 'Nothing here yet.') + '</div>' : '') +
+      '</div>';
+  }
+
+  function renderBoards(){
+    renderBoard('left');
+    renderBoard('right');
+  }
+
+  function loadBoard(){
+    if (!SYNC_URL) return;
+    fetch(SYNC_URL + '?action=board')
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        boardItems = (data && data.items) || [];
+        renderBoards();
+      })
+      .catch(function(){});
+  }
+
+  function addBoardItem(type, content){
+    if (!session) return;
+    fetch(SYNC_URL, { method: 'POST', body: JSON.stringify({ action: 'add-item', token: session.token, type: type, content: content }) })
+      .then(function(res){ return res.json(); })
+      .then(function(res){ if (res.ok) loadBoard(); });
+  }
+
+  function saveBoardItem(item){
+    if (!session) return;
+    fetch(SYNC_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'update-item', token: session.token, id: item.id,
+        x: item.x, y: item.y, rot: item.rot, content: item.content, color: item.color, font: item.font,
+      }),
+    }).catch(function(){});
+  }
+
+  function removeBoardItem(id){
+    if (!session) return;
+    fetch(SYNC_URL, { method: 'POST', body: JSON.stringify({ action: 'remove-item', token: session.token, id: id }) })
+      .then(function(){
+        boardItems = boardItems.filter(function(it){ return it.id !== id; });
+        renderBoards();
+      })
+      .catch(function(){});
+  }
+
+  function setupBoardInteractions(){
+    document.addEventListener('pointerdown', function(e){
+      var roleEl = e.target.closest('[data-role]');
+      if (roleEl && roleEl.dataset.role === 'remove'){
+        var rmItemEl = e.target.closest('.board-item');
+        if (rmItemEl) removeBoardItem(rmItemEl.dataset.id);
+        return;
+      }
+      if (roleEl && (roleEl.dataset.role === 'color' || roleEl.dataset.role === 'font')) return;
+
+      var itemEl = e.target.closest('.board-item.editable');
+      if (!itemEl) return;
+      var isRotateHandle = !!(roleEl && roleEl.dataset.role === 'rotate');
+      if (!isRotateHandle && e.target.closest('[contenteditable="true"]')) return; // let text editing focus normally
+
+      var surfaceEl = itemEl.closest('.board-surface');
+      if (!surfaceEl) return;
+      var item = itemById(itemEl.dataset.id);
+      if (!item) return;
+      var rect = surfaceEl.getBoundingClientRect();
+      dragState = {
+        itemEl: itemEl, item: item, rect: rect, mode: isRotateHandle ? 'rotate' : 'move',
+        centerX: rect.left + (item.x / 100) * rect.width,
+        centerY: rect.top + (item.y / 100) * rect.height,
+      };
+      itemEl.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    document.addEventListener('pointermove', function(e){
+      if (!dragState) return;
+      var item = dragState.item;
+      if (dragState.mode === 'move'){
+        var xPct = ((e.clientX - dragState.rect.left) / dragState.rect.width) * 100;
+        var yPct = ((e.clientY - dragState.rect.top) / dragState.rect.height) * 100;
+        item.x = Math.max(6, Math.min(94, xPct));
+        item.y = Math.max(8, Math.min(92, yPct));
+      } else {
+        var angle = Math.atan2(e.clientY - dragState.centerY, e.clientX - dragState.centerX) * 180 / Math.PI + 90;
+        item.rot = Math.round(angle);
+      }
+      dragState.itemEl.style.left = item.x + '%';
+      dragState.itemEl.style.top = item.y + '%';
+      dragState.itemEl.style.transform = 'translate(-50%, -50%) rotate(' + item.rot + 'deg)';
+    });
+
+    document.addEventListener('pointerup', function(){
+      if (!dragState) return;
+      var item = dragState.item;
+      dragState = null;
+      saveBoardItem(item);
+    });
+
+    document.addEventListener('blur', function(e){
+      var span = e.target.closest && e.target.closest('.board-text[contenteditable="true"]');
+      if (!span) return;
+      var itemEl = span.closest('.board-item');
+      var item = itemById(itemEl.dataset.id);
+      if (!item) return;
+      item.content = span.textContent.slice(0, 140);
+      saveBoardItem(item);
+    }, true);
+
+    document.addEventListener('input', function(e){
+      if (e.target.classList && e.target.classList.contains('music-seek')){
+        var audioEl = document.getElementById(e.target.dataset.target);
+        if (audioEl && audioEl.duration) audioEl.currentTime = (e.target.value / 100) * audioEl.duration;
+        return;
+      }
+      var role = e.target.dataset && e.target.dataset.role;
+      if (role !== 'color' && role !== 'font') return;
+      var itemEl = e.target.closest('.board-item');
+      var item = itemById(itemEl.dataset.id);
+      if (!item) return;
+      if (role === 'color') item.color = e.target.value;
+      if (role === 'font') item.font = e.target.value;
+      var textSpan = itemEl.querySelector('.board-text');
+      if (textSpan){
+        textSpan.style.color = item.color;
+        textSpan.style.fontFamily = "'" + item.font + "', sans-serif";
+      }
+    });
+
+    document.addEventListener('change', function(e){
+      var role = e.target.dataset && e.target.dataset.role;
+      if (role !== 'color' && role !== 'font') return;
+      var itemEl = e.target.closest('.board-item');
+      var item = itemById(itemEl.dataset.id);
+      if (item) saveBoardItem(item);
+    });
+
+    // Media events don't bubble, so listen on the capture phase to catch them via delegation.
+    document.addEventListener('play', function(e){
+      if (e.target.tagName !== 'AUDIO') return;
+      var row = e.target.closest('.music-row');
+      var btn = row && row.querySelector('[data-role="play"]');
+      if (btn) btn.textContent = '⏸';
+    }, true);
+    document.addEventListener('pause', function(e){
+      if (e.target.tagName !== 'AUDIO') return;
+      var row = e.target.closest('.music-row');
+      var btn = row && row.querySelector('[data-role="play"]');
+      if (btn) btn.textContent = '▶';
+    }, true);
+    document.addEventListener('timeupdate', function(e){
+      if (e.target.tagName !== 'AUDIO' || !e.target.duration) return;
+      var row = e.target.closest('.music-row');
+      var seek = row && row.querySelector('.music-seek');
+      if (seek && document.activeElement !== seek) seek.value = (e.target.currentTime / e.target.duration) * 100;
+    }, true);
+  }
+
+  function boot(){
+    loadSession();
+    renderApp();
+    renderAuthBar();
+    renderBoards();
+    setupBoardInteractions();
+
     document.addEventListener('click', function(e){
+      if (e.target.id === 'signin-btn'){ openLogin(); return; }
+      if (e.target.id === 'signout-btn'){ signOut(); return; }
+      if (e.target.id === 'login-cancel'){ closeLogin(); return; }
+      if (e.target.id === 'login-send'){ sendCode(); return; }
+      if (e.target.id === 'login-verify'){ verifyCode(); return; }
+      if (e.target.id === 'login-overlay'){ closeLogin(); return; }
+
+      var addBtn = e.target.closest('[data-add]');
+      if (addBtn){
+        var type = addBtn.dataset.add;
+        if (type === 'image'){
+          var url = window.prompt('Paste an image URL:');
+          if (url && url.trim()) addBoardItem('image', url.trim());
+        } else if (type === 'audio'){
+          var murl = window.prompt('Paste a direct audio file URL (mp3/ogg):');
+          if (murl && murl.trim()) addBoardItem('audio', murl.trim());
+        } else {
+          addBoardItem('text', 'Type here');
+        }
+        return;
+      }
+
+      var musicBtn = e.target.closest('.music-btn');
+      if (musicBtn){
+        var role = musicBtn.dataset.role;
+        if (role === 'remove-audio'){ removeBoardItem(musicBtn.dataset.id); return; }
+        var audioEl = document.getElementById(musicBtn.dataset.target);
+        if (!audioEl) return;
+        if (role === 'play'){
+          if (audioEl.paused) audioEl.play(); else audioEl.pause();
+        } else if (role === 'back10'){
+          audioEl.currentTime = Math.max(0, audioEl.currentTime - 10);
+        } else if (role === 'fwd10'){
+          audioEl.currentTime = Math.min(audioEl.duration || 1e9, audioEl.currentTime + 10);
+        }
+        return;
+      }
+
+      var navBtn = e.target.closest('[data-nav]');
+      if (navBtn){
+        var nav = navBtn.dataset.nav;
+        if (nav === 'today') jumpToday(); else changeWeek(parseInt(nav, 10));
+        return;
+      }
       var mini = e.target.closest('.mini');
       if (mini){ toggleTogether(mini.dataset.task, mini.dataset.date, mini.dataset.person); return; }
       var btn = e.target.closest('.task:not(.together)');
       if (btn) toggleTask(btn.dataset.task, btn.dataset.date);
     });
-    if (SYNC_URL) loadFromServer();
+
+    if (SYNC_URL){
+      loadFromServer();
+      loadBoard();
+    } else {
+      renderBoards();
+    }
   }
 
   boot();
