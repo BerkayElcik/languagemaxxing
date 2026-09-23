@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sprachpaar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style id="app-style">
+  :root{
+    color-scheme: light dark;
+
+    --bg: #F2F4F0;
+    --surface: #FFFFFF;
+    --surface-2: #FBFBF9;
+    --ink: #21272A;
+    --ink-soft: #5B6560;
+    --line: #DBE1DA;
+
+    --berkay: #2E5C8A;
+    --berkay-soft: #DCE7F2;
+    --berkay-ink: #1B3E5C;
+
+    --yagmur: #9C3B62;
+    --yagmur-soft: #F5DEE6;
+    --yagmur-ink: #6E2946;
+
+    --common: #A97A2C;
+    --common-soft: #F0E2C4;
+    --common-ink: #7A5316;
+
+    --shadow: 0 1px 2px rgba(20,26,20,.06), 0 10px 26px -14px rgba(20,26,20,.22);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg: #171B18;
+      --surface: #1E2420;
+      --surface-2: #222923;
+      --ink: #EAEDE8;
+      --ink-soft: #99A69C;
+      --line: #2B332C;
+
+      --berkay: #86B4E2;
+      --berkay-soft: #223349;
+      --berkay-ink: #D2E4F6;
+
+      --yagmur: #E794B4;
+      --yagmur-soft: #3A2530;
+      --yagmur-ink: #F5D6E4;
+
+      --common: #DDAE5E;
+      --common-soft: #3A2E17;
+      --common-ink: #F2DBA8;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 26px -14px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg: #171B18;
+    --surface: #1E2420;
+    --surface-2: #222923;
+    --ink: #EAEDE8;
+    --ink-soft: #99A69C;
+    --line: #2B332C;
+
+    --berkay: #86B4E2;
+    --berkay-soft: #223349;
+    --berkay-ink: #D2E4F6;
+
+    --yagmur: #E794B4;
+    --yagmur-soft: #3A2530;
+    --yagmur-ink: #F5D6E4;
+
+    --common: #DDAE5E;
+    --common-soft: #3A2E17;
+    --common-ink: #F2DBA8;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 26px -14px rgba(0,0,0,.5);
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ margin: 0; }
+  img{ max-width: 100%; }
+  [hidden]{ display: none !important; }
+
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Public Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+    padding: 28px 20px 40px;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  }
+
+  .wrap{ max-width: 700px; margin: 0 auto; }
+
+  .kicker{
+    margin: 0 0 4px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  h1{
+    margin: 0 0 6px;
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 600;
+    font-size: 34px;
+    letter-spacing: -.01em;
+    text-wrap: balance;
+  }
+  .week-label{
+    margin: 0 0 22px;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .banner{
+    background: var(--common-soft);
+    color: var(--common-ink);
+    border: 1px solid var(--common);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+
+  .stats{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .stat{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+  }
+  .stat-flag{ font-size: 26px; line-height: 1; }
+  .stat-name{
+    margin: 0 0 2px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+  .stat-num{
+    margin: 0;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .stat.owner-berkay .stat-num{ color: var(--berkay); }
+  .stat.owner-yagmur .stat-num{ color: var(--yagmur); }
+  .stat-unit{
+    font-family: "Public Sans", sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    margin-left: 3px;
+  }
+
+  .progress-row{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+  .progress{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+  }
+  .progress.alltime .bar-fill{
+    background: linear-gradient(90deg, var(--yagmur), var(--common));
+  }
+  .progress.together .bar-fill{
+    background: var(--common);
+  }
+  .progress-head{
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+  .progress-head span:last-child{
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .bar{
+    height: 8px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .bar-fill{
+    height: 100%;
+    background: linear-gradient(90deg, var(--common), var(--berkay));
+    border-radius: 999px;
+    transition: width .25s ease;
+  }
+
+  .day-grid{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .day-card{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .day-card.today{
+    border-color: var(--common);
+    box-shadow: 0 0 0 1.5px var(--common), var(--shadow);
+  }
+  .day-name{
+    margin: 0;
+    font-weight: 600;
+    font-size: 14.5px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .eyebrow{
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 9.5px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--common-ink);
+    background: var(--common-soft);
+    border-radius: 999px;
+    padding: 2px 7px;
+  }
+  .day-date{
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .tasks{ display: flex; flex-direction: column; gap: 7px; }
+  .rest{
+    margin: 4px 0 2px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+
+  .task{
+    --accent: var(--ink-soft);
+    --accent-soft: var(--surface-2);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    text-align: left;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 9px;
+    cursor: pointer;
+    font: inherit;
+    color: var(--ink);
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .task:hover{ border-color: var(--accent); }
+  .task:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+  .task.owner-berkay{ --accent: var(--berkay); --accent-soft: var(--berkay-soft); }
+  .task.owner-yagmur{ --accent: var(--yagmur); --accent-soft: var(--yagmur-soft); }
+  .task.done{ background: var(--accent-soft); border-color: var(--accent); }
+  .task.locked, .task:disabled{ opacity: .45; cursor: not-allowed; }
+  .task.locked:hover, .task:disabled:hover{ border-color: var(--line); }
+
+  .check{
+    flex: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    position: relative;
+  }
+  .task.done .check{ background: var(--accent); }
+  .task.done .check::after{
+    content: "✓";
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    color: var(--surface);
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .task.together{ cursor: default; }
+  .task.together:hover{ border-color: var(--line); }
+  .pair{ display: flex; gap: 6px; flex: none; }
+  .mini{
+    width: 30px; height: 30px;
+    flex: none;
+    border-radius: 999px;
+    border: 2px solid var(--accent);
+    background: var(--surface);
+    color: var(--accent);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background .15s ease, color .15s ease;
+  }
+  .mini.owner-berkay{ --accent: var(--berkay); }
+  .mini.owner-yagmur{ --accent: var(--yagmur); }
+  .mini:hover{ background: var(--surface-2); }
+  .mini:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+  .mini.done{ background: var(--accent); color: var(--surface); }
+  .mini.locked, .mini:disabled{ opacity: .45; cursor: not-allowed; }
+  .mini.locked:hover, .mini:disabled:hover{ background: var(--surface); }
+
+  .task-body{ flex: 1; min-width: 0; }
+  .task-activity{
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .task.done .task-activity{ text-decoration: line-through; opacity: .65; }
+  .task-time{
+    display: block;
+    font-size: 11px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+  }
+
+  .badge{
+    flex: none;
+    width: 20px; height: 20px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: var(--accent-soft);
+    color: var(--accent-ink, var(--accent));
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .footnote{
+    margin: 22px 2px 0;
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  .sync-note{
+    margin: 8px 2px 0;
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="app"></div>
+</div>
+<script id="app-script">
+(function(){
+  // Paste your deployed Google Apps Script Web App URL here (see apps-script/README.md).
+  // Left blank, the tracker still works, but only saves to this one browser.
+  var SYNC_URL = '';
+
+  var SCHEDULE = [
+    [ {id:'mon-reading', time:'06:00–08:00', activity:'Reading', type:'solo', owner:'berkay'},
+      {id:'mon-study',   time:'10:00–14:00', activity:'Study',   type:'solo', owner:'yagmur'},
+      {id:'mon-course',  time:'20:00–00:00', activity:'Course',  type:'solo', owner:'yagmur'} ],
+    [ {id:'tue-exercise', time:'20:00–00:00', activity:'Exercise', type:'together'} ],
+    [ {id:'wed-reading', time:'06:00–08:00', activity:'Reading', type:'solo', owner:'berkay'},
+      {id:'wed-study',   time:'10:00–14:00', activity:'Study',   type:'solo', owner:'yagmur'},
+      {id:'wed-course',  time:'20:00–00:00', activity:'Course',  type:'solo', owner:'yagmur'} ],
+    [ {id:'thu-qa', time:'20:00–00:00', activity:'Q&A', type:'together'} ],
+    [],
+    [ {id:'sat-intense', time:'10:00–14:00', activity:'Intense study', type:'together'} ],
+    [ {id:'sun-study', time:'10:00–14:00', activity:'Study', type:'solo', owner:'yagmur'} ]
+  ];
+  var OWNERS = {
+    berkay: { name:'Berkay', lang:'German', flag:'🇩🇪', badge:'B' },
+    yagmur: { name:'Yağmur', lang:'French', flag:'🇫🇷', badge:'Y' }
+  };
+  var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  var state = readInitialState();
+  var readOnly = false;
+  var syncState = SYNC_URL ? 'connecting' : 'local';
+
+  function readInitialState(){
+    var parsed = null;
+    try {
+      var raw = localStorage.getItem('sprachpaar-state');
+      if (raw) parsed = JSON.parse(raw);
+    } catch (e) {}
+    if (!parsed || typeof parsed !== 'object') parsed = { completions: {} };
+    if (!parsed.completions) parsed.completions = {};
+    if (!parsed.startDate) parsed.startDate = isoDate(new Date());
+    return parsed;
+  }
+
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function isoDate(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function startOfWeek(d){
+    var day = (d.getDay() + 6) % 7;
+    var m = new Date(d);
+    m.setHours(0, 0, 0, 0);
+    m.setDate(d.getDate() - day);
+    return m;
+  }
+
+  function isDoneForOwner(t, dISO, owner){
+    if (t.type === 'together') return !!state.completions[dISO + ':' + t.id + ':' + owner];
+    return t.owner === owner && !!state.completions[dISO + ':' + t.id];
+  }
+
+  function tasksForOwnerOnDay(idx, owner){
+    return SCHEDULE[idx].filter(function(t){ return t.type === 'together' || t.owner === owner; });
+  }
+
+  function computeStreak(owner, today){
+    var streak = 0;
+    var cursor = new Date(today);
+    cursor.setHours(0, 0, 0, 0);
+    var todayISO = isoDate(today);
+    for (var i = 0; i < 370; i++){
+      var idx = (cursor.getDay() + 6) % 7;
+      var tasks = tasksForOwnerOnDay(idx, owner);
+      if (tasks.length === 0){
+        cursor.setDate(cursor.getDate() - 1);
+        continue;
+      }
+      var dISO = isoDate(cursor);
+      var allDone = tasks.every(function(t){ return isDoneForOwner(t, dISO, owner); });
+      if (allDone){
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+        continue;
+      }
+      if (dISO === todayISO){
+        cursor.setDate(cursor.getDate() - 1);
+        continue;
+      }
+      break;
+    }
+    return streak;
+  }
+
+  // Each solo task is one "planned activity"; a together task is two (one per person),
+  // so it counts double toward the shared total — matching how the spreadsheet weighs it.
+  function statsForRange(start, end){
+    var total = 0, done = 0;
+    var cursor = new Date(start);
+    while (cursor <= end){
+      var idx = (cursor.getDay() + 6) % 7;
+      var dISO = isoDate(cursor);
+      SCHEDULE[idx].forEach(function(t){
+        if (t.type === 'together'){
+          total += 2;
+          if (state.completions[dISO + ':' + t.id + ':berkay']) done++;
+          if (state.completions[dISO + ':' + t.id + ':yagmur']) done++;
+        } else {
+          total++;
+          if (state.completions[dISO + ':' + t.id]) done++;
+        }
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return { total: total, done: done };
+  }
+
+  function weekStats(monday){
+    var sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return statsForRange(monday, sunday);
+  }
+
+  function allTimeStats(){
+    var start = new Date(state.startDate + 'T00:00:00');
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return statsForRange(start, today);
+  }
+
+  // The joint "together" score: only rises when BOTH of them checked in for that session.
+  function togetherStats(){
+    var start = new Date(state.startDate + 'T00:00:00');
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var total = 0, done = 0;
+    var cursor = new Date(start);
+    while (cursor <= today){
+      var idx = (cursor.getDay() + 6) % 7;
+      var dISO = isoDate(cursor);
+      SCHEDULE[idx].forEach(function(t){
+        if (t.type !== 'together') return;
+        total++;
+        if (state.completions[dISO + ':' + t.id + ':berkay'] && state.completions[dISO + ':' + t.id + ':yagmur']) done++;
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return { total: total, done: done };
+  }
+
+  function escapeHTML(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  function soloTaskHTML(t, dISO, locked){
+    var done = !!state.completions[dISO + ':' + t.id];
+    var owner = OWNERS[t.owner];
+    return '<button type="button" class="task owner-' + t.owner + (done ? ' done' : '') + (locked ? ' locked' : '') +
+      '" data-task="' + t.id + '" data-date="' + dISO + '" aria-pressed="' + done + '"' + (locked ? ' disabled aria-disabled="true" title="You can’t check off a future day yet"' : '') + '>' +
+      '<span class="check" aria-hidden="true"></span>' +
+      '<span class="task-body"><span class="task-activity">' + escapeHTML(t.activity) +
+      '</span><span class="task-time">' + escapeHTML(t.time) + '</span></span>' +
+      '<span class="badge" title="' + escapeHTML(owner.name) + '">' + owner.badge + '</span>' +
+      '</button>';
+  }
+
+  function togetherTaskHTML(t, dISO, locked){
+    var bDone = !!state.completions[dISO + ':' + t.id + ':berkay'];
+    var yDone = !!state.completions[dISO + ':' + t.id + ':yagmur'];
+    var lockedAttrs = locked ? ' disabled aria-disabled="true" title="You can’t check off a future day yet"' : '';
+    return '<div class="task together">' +
+      '<span class="task-body"><span class="task-activity">' + escapeHTML(t.activity) +
+      '</span><span class="task-time">' + escapeHTML(t.time) + '</span></span>' +
+      '<div class="pair">' +
+      '<button type="button" class="mini owner-berkay' + (bDone ? ' done' : '') + (locked ? ' locked' : '') +
+      '" data-task="' + t.id + '" data-date="' + dISO + '" data-person="berkay" aria-pressed="' + bDone + '"' + lockedAttrs + '>B</button>' +
+      '<button type="button" class="mini owner-yagmur' + (yDone ? ' done' : '') + (locked ? ' locked' : '') +
+      '" data-task="' + t.id + '" data-date="' + dISO + '" data-person="yagmur" aria-pressed="' + yDone + '"' + lockedAttrs + '>Y</button>' +
+      '</div></div>';
+  }
+
+  function taskRowHTML(t, dISO, locked){
+    return t.type === 'together' ? togetherTaskHTML(t, dISO, locked) : soloTaskHTML(t, dISO, locked);
+  }
+
+  function dayCardHTML(idx, date, todayISO){
+    var dISO = isoDate(date);
+    var isToday = dISO === todayISO;
+    var isFuture = dISO > todayISO;
+    var tasks = SCHEDULE[idx];
+    var tasksHTML = tasks.length
+      ? tasks.map(function(t){ return taskRowHTML(t, dISO, isFuture); }).join('')
+      : '<p class="rest">Rest day</p>';
+    return '<div class="day-card' + (isToday ? ' today' : '') + '">' +
+      '<div><p class="day-name">' + DAY_NAMES[idx] + (isToday ? ' <span class="eyebrow">Today</span>' : '') + '</p>' +
+      '<p class="day-date">' + date.getDate() + ' ' + MONTH_NAMES[date.getMonth()] + '</p></div>' +
+      '<div class="tasks">' + tasksHTML + '</div>' +
+      '</div>';
+  }
+
+  function gridHTML(monday, todayISO){
+    var out = '';
+    for (var i = 0; i < 7; i++){
+      var d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      out += dayCardHTML(i, d, todayISO);
+    }
+    return out;
+  }
+
+  function streakTileHTML(owner){
+    var o = OWNERS[owner];
+    var streak = computeStreak(owner, new Date());
+    return '<div class="stat owner-' + owner + '">' +
+      '<span class="stat-flag">' + o.flag + '</span>' +
+      '<div><p class="stat-name">' + o.name + ' · ' + o.lang + '</p>' +
+      '<p class="stat-num">' + streak + '<span class="stat-unit">' + (streak === 1 ? ' day streak' : ' day streak') + '</span></p></div>' +
+      '</div>';
+  }
+
+  function progressBarHTML(label, s, modifier){
+    var pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
+    return '<div class="progress' + (modifier ? ' ' + modifier : '') + '">' +
+      '<div class="progress-head"><span>' + label + '</span><span>' + s.done + '/' + s.total + ' done · ' + pct + '%</span></div>' +
+      '<div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div>' +
+      '</div>';
+  }
+
+  function progressHTML(monday){
+    return '<div class="progress-row">' +
+      progressBarHTML('This week', weekStats(monday)) +
+      progressBarHTML('All time', allTimeStats(), 'alltime') +
+      progressBarHTML('Together — both joined', togetherStats(), 'together') +
+      '</div>';
+  }
+
+  function weekLabel(monday){
+    var sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    if (monday.getMonth() === sunday.getMonth()){
+      return monday.getDate() + '–' + sunday.getDate() + ' ' + MONTH_NAMES[monday.getMonth()] + ' ' + monday.getFullYear();
+    }
+    return monday.getDate() + ' ' + MONTH_NAMES[monday.getMonth()] + ' – ' +
+      sunday.getDate() + ' ' + MONTH_NAMES[sunday.getMonth()] + ' ' + sunday.getFullYear();
+  }
+
+  function syncNoteHTML(){
+    if (syncState === 'local') return 'Saving to this browser only — add a Sync URL for cross-device sync.';
+    if (syncState === 'connecting') return 'Connecting…';
+    if (syncState === 'offline') return 'Couldn’t reach the shared sheet — saved locally, will retry.';
+    return 'Synced with the shared sheet.';
+  }
+
+  function bodyHTML(){
+    var today = new Date();
+    var monday = startOfWeek(today);
+    var todayISO = isoDate(today);
+    return (
+      '<p class="kicker">Weekly language tracker</p>' +
+      '<h1>Sprachpaar</h1>' +
+      '<p class="week-label">' + weekLabel(monday) + '</p>' +
+      (readOnly ? '<div class="banner">You’re viewing a read-only copy — changes here won’t be saved.</div>' : '') +
+      '<div class="stats">' + streakTileHTML('berkay') + streakTileHTML('yagmur') + '</div>' +
+      progressHTML(monday) +
+      '<div class="day-grid">' + gridHTML(monday, todayISO) + '</div>' +
+      '<p class="footnote">Tap a task to mark it done.</p>' +
+      '<p class="sync-note">' + syncNoteHTML() + '</p>'
+    );
+  }
+
+  function renderApp(){
+    var app = document.getElementById('app');
+    if (app) app.innerHTML = bodyHTML();
+  }
+
+  function saveLocal(){
+    try { localStorage.setItem('sprachpaar-state', JSON.stringify(state)); } catch (e) {}
+  }
+
+  function saveToServer(key){
+    if (!SYNC_URL) return;
+    fetch(SYNC_URL, {
+      method: 'POST',
+      body: JSON.stringify({ key: key, done: !!state.completions[key] }),
+    })
+      .then(function(){ syncState = 'synced'; renderApp(); })
+      .catch(function(){ syncState = 'offline'; renderApp(); });
+  }
+
+  function loadFromServer(){
+    if (!SYNC_URL) return Promise.resolve(false);
+    return fetch(SYNC_URL)
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        if (data && data.completions){
+          state.completions = data.completions;
+          saveLocal();
+        }
+        syncState = 'synced';
+        renderApp();
+        return true;
+      })
+      .catch(function(){
+        syncState = 'offline';
+        renderApp();
+        return false;
+      });
+  }
+
+  function toggleTask(taskId, dateISO){
+    if (readOnly) return;
+    if (dateISO > isoDate(new Date())) return;
+    var key = dateISO + ':' + taskId;
+    state.completions[key] = !state.completions[key];
+    renderApp();
+    saveLocal();
+    saveToServer(key);
+  }
+
+  function toggleTogether(taskId, dateISO, person){
+    if (readOnly) return;
+    if (dateISO > isoDate(new Date())) return;
+    var key = dateISO + ':' + taskId + ':' + person;
+    state.completions[key] = !state.completions[key];
+    renderApp();
+    saveLocal();
+    saveToServer(key);
+  }
+
+  function boot(){
+    renderApp();
+    document.addEventListener('click', function(e){
+      var mini = e.target.closest('.mini');
+      if (mini){ toggleTogether(mini.dataset.task, mini.dataset.date, mini.dataset.person); return; }
+      var btn = e.target.closest('.task:not(.together)');
+      if (btn) toggleTask(btn.dataset.task, btn.dataset.date);
+    });
+    if (SYNC_URL) loadFromServer();
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
