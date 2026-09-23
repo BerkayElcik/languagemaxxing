@@ -34,23 +34,57 @@ function sessionsSheet_() { return sheet_('Sessions', ['Token', 'Email', 'Person
 // Seeded once, the first time this sheet is created: Yağmur's opening track
 // (Dvořák, Serenade for Strings in E, Op. 22 — II. Tempo di Valse; CC BY-SA 4.0, Wikimedia Commons)
 // and a shared Dutch van der Linde sticker either of you can move/rotate/resize/remove.
+// Self-heals an older sheet missing the Scale column or the Dutch seed, instead of
+// requiring anyone to delete real data — real rows (including their x/y/rot) are kept.
 function boardSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('BoardItems');
   if (!sheet) {
     sheet = ss.insertSheet('BoardItems');
     sheet.appendRow(['Id', 'Side', 'Type', 'Content', 'Color', 'Font', 'X', 'Y', 'Rot', 'Scale', 'AddedBy', 'UpdatedAt']);
-    sheet.appendRow([
-      Utilities.getUuid(), 'right', 'audio',
-      'https://upload.wikimedia.org/wikipedia/commons/c/c2/Dvorak_String_Serenade_II_Tempo_di_Valse.ogg',
-      '', '', 50, 50, 0, 1, 'yagmur', new Date(),
-    ]);
+    seedBoardDefaults_(sheet);
+    return sheet;
+  }
+  migrateBoardSheet_(sheet);
+  return sheet;
+}
+
+function seedBoardDefaults_(sheet) {
+  sheet.appendRow([
+    Utilities.getUuid(), 'right', 'audio',
+    'https://upload.wikimedia.org/wikipedia/commons/c/c2/Dvorak_String_Serenade_II_Tempo_di_Valse.ogg',
+    '', '', 50, 50, 0, 1, 'yagmur', new Date(),
+  ]);
+  sheet.appendRow([
+    Utilities.getUuid(), 'shared', 'image', 'plan.jpg',
+    '', '', 15, 10, 0, 1, 'berkay', new Date(),
+  ]);
+}
+
+function migrateBoardSheet_(sheet) {
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (header.indexOf('Scale') === -1) {
+    var addedByCol = header.indexOf('AddedBy') + 1; // 1-based
+    sheet.insertColumnBefore(addedByCol);
+    sheet.getRange(1, addedByCol).setValue('Scale');
+    var lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      var defaults = [];
+      for (var i = 0; i < lastRow - 1; i++) defaults.push([1]);
+      sheet.getRange(2, addedByCol, lastRow - 1, 1).setValues(defaults);
+    }
+  }
+  var data = sheet.getDataRange().getValues();
+  var hasShared = false;
+  for (var j = 1; j < data.length; j++) {
+    if (data[j][1] === 'shared') { hasShared = true; break; }
+  }
+  if (!hasShared) {
     sheet.appendRow([
       Utilities.getUuid(), 'shared', 'image', 'plan.jpg',
       '', '', 15, 10, 0, 1, 'berkay', new Date(),
     ]);
   }
-  return sheet;
 }
 
 function personForToken_(token) {
