@@ -478,6 +478,26 @@
     color: var(--ink-soft);
     text-align: center;
   }
+  .program-end-row{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .program-end-row .sync-note{ margin: 8px 0 0; }
+  .extend-btn{
+    margin-top: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .extend-btn:hover{ color: var(--ink); border-color: var(--ink-soft); }
 
   .auth-bar{
     position: fixed;
@@ -842,9 +862,10 @@
   var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  // The program runs 28 Sep through the end of 2026 — matches the spreadsheet's range.
-  var PROGRAM_START = '2026-09-28';
-  var PROGRAM_END = '2026-12-31';
+  // The program runs 26 Sep through the end of 2026 — matches the spreadsheet's range.
+  var PROGRAM_START = '2026-09-26';
+  var DEFAULT_PROGRAM_END = '2026-12-31';
+  var programEnd = DEFAULT_PROGRAM_END; // can grow — see loadSettings()/extendProgram() below
 
   var state = readInitialState();
   var readOnly = false;
@@ -872,6 +893,10 @@
 
   function pad(n){ return String(n).padStart(2, '0'); }
   function isoDate(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function formatDate(iso){
+    var parts = iso.split('-').map(Number);
+    return parts[2] + ' ' + MONTH_NAMES[parts[1] - 1] + ' ' + parts[0];
+  }
   function startOfWeek(d){
     var day = (d.getDay() + 6) % 7;
     var m = new Date(d);
@@ -950,7 +975,7 @@
   function programCappedToday(){
     var today = new Date();
     today.setHours(0, 0, 0, 0);
-    var end = new Date(PROGRAM_END + 'T00:00:00');
+    var end = new Date(programEnd + 'T00:00:00');
     return today > end ? end : today;
   }
 
@@ -1176,14 +1201,14 @@
   function baseMonday(){
     var today = new Date();
     var startBound = minBoundMonday();
-    var endBound = new Date(PROGRAM_END + 'T00:00:00');
+    var endBound = new Date(programEnd + 'T00:00:00');
     var effectiveToday = today < startBound ? startBound : (today > endBound ? endBound : today);
     return startOfWeek(effectiveToday);
   }
 
   function clampMonday(m){
     var minM = minBoundMonday();
-    var maxM = startOfWeek(new Date(PROGRAM_END + 'T00:00:00'));
+    var maxM = startOfWeek(new Date(programEnd + 'T00:00:00'));
     if (m < minM) return minM;
     if (m > maxM) return maxM;
     return m;
@@ -1207,7 +1232,7 @@
 
   function weekNavHTML(monday){
     var minM = minBoundMonday();
-    var maxM = startOfWeek(new Date(PROGRAM_END + 'T00:00:00'));
+    var maxM = startOfWeek(new Date(programEnd + 'T00:00:00'));
     var atMin = monday.getTime() === minM.getTime();
     var atMax = monday.getTime() === maxM.getTime();
     var isCurrent = monday.getTime() === baseMonday().getTime();
@@ -1245,7 +1270,7 @@
 
   function programWeeks(){
     var cursor = minBoundMonday();
-    var end = startOfWeek(new Date(PROGRAM_END + 'T00:00:00'));
+    var end = startOfWeek(new Date(programEnd + 'T00:00:00'));
     var weeks = [];
     while (cursor <= end){
       weeks.push(new Date(cursor));
@@ -1288,7 +1313,10 @@
         ? weekNavHTML(monday) + progressHTML(monday) + '<div class="day-grid">' + gridHTML(monday, todayISO) + '</div>'
         : allWeeksHTML(todayISO)) +
       '<p class="footnote">Tap a task to mark it done.</p>' +
-      '<p class="sync-note">' + syncNoteHTML() + '</p>'
+      '<div class="program-end-row">' +
+      '<p class="sync-note">' + syncNoteHTML() + ' Runs through ' + formatDate(programEnd) + '.</p>' +
+      (session ? '<button type="button" class="extend-btn" id="extend-month-btn">+ 1 month</button>' : '') +
+      '</div>'
     );
   }
 
@@ -1614,6 +1642,32 @@
       .catch(function(){});
   }
 
+  function loadSettings(){
+    if (!SYNC_URL) return;
+    fetch(SYNC_URL + '?action=settings')
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        if (data && data.programEnd) programEnd = data.programEnd;
+        renderApp();
+      })
+      .catch(function(){});
+  }
+
+  function extendProgram(){
+    if (!session) return;
+    fetch(SYNC_URL, { method: 'POST', body: JSON.stringify({ action: 'extend-month', token: session.token }) })
+      .then(function(res){ return res.json(); })
+      .then(function(res){
+        if (res.ok && res.programEnd){
+          programEnd = res.programEnd;
+          renderApp();
+        } else if (!res.ok) {
+          alert('Could not extend the program — try again.');
+        }
+      })
+      .catch(function(){ alert('Could not extend the program — check your connection.'); });
+  }
+
   function addBoardItem(type, content, color, font){
     if (!session) return;
     fetch(SYNC_URL, {
@@ -1832,6 +1886,7 @@
       if (e.target.id === 'login-send'){ sendCode(); return; }
       if (e.target.id === 'login-verify'){ verifyCode(); return; }
       if (e.target.id === 'login-overlay'){ closeLogin(); return; }
+      if (e.target.id === 'extend-month-btn'){ extendProgram(); return; }
 
       var addBtn = e.target.closest('[data-add]');
       if (addBtn){
@@ -1902,6 +1957,7 @@
       loadFromServer();
       loadBoard();
       loadRewards();
+      loadSettings();
     } else {
       renderBoards();
     }

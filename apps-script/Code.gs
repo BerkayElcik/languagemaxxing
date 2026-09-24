@@ -2,10 +2,12 @@
 // (Extensions > Apps Script) and deploy it as a Web App. See README.md for setup steps.
 //
 // Sheets used (all created automatically on first use):
-//   Completions — Key | Done | UpdatedAt        (task checkboxes)
-//   LoginCodes  — Email | Code | ExpiresAt       (one-time sign-in codes)
-//   Sessions    — Token | Email | Person | CreatedAt
-//   BoardItems  — Id | Side | Type | Content | Color | Font | X | Y | Rot | AddedBy | UpdatedAt
+//   Completions  — Key | Done | UpdatedAt        (task checkboxes)
+//   LoginCodes   — Email | Code | ExpiresAt       (one-time sign-in codes)
+//   Sessions     — Token | Email | Person | CreatedAt
+//   BoardItems   — Id | Side | Type | Content | Color | Font | X | Y | Rot | AddedBy | UpdatedAt
+//   WeekRewards  — Week | Type | Content | Color | Font | AddedBy | UpdatedAt
+//   Settings     — Key | Value | UpdatedAt        (currently just ProgramEnd)
 //
 // Only these two people can sign in and write anything. Change the emails here if needed.
 var ALLOWED = {
@@ -33,6 +35,46 @@ function sessionsSheet_() { return sheet_('Sessions', ['Token', 'Email', 'Person
 // One reward per completed week (Monday's ISO date as the key) — the image/text either
 // of you adds in the blank Sunday slot once that whole week is fully checked off.
 function weekRewardsSheet_() { return sheet_('WeekRewards', ['Week', 'Type', 'Content', 'Color', 'Font', 'AddedBy', 'UpdatedAt']); }
+// Small key/value table for shared settings that should persist across both of your
+// devices — currently just how far the program's end date has been pushed out.
+function settingsSheet_() { return sheet_('Settings', ['Key', 'Value', 'UpdatedAt']); }
+
+var DEFAULT_PROGRAM_END = '2026-12-31';
+
+function getSetting_(key, fallback) {
+  var data = settingsSheet_().getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === key) return data[i][1];
+  }
+  return fallback;
+}
+
+function setSetting_(key, value) {
+  var sheet = settingsSheet_();
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === key) {
+      sheet.getRange(i + 1, 2, 1, 2).setValues([[value, new Date()]]);
+      return;
+    }
+  }
+  sheet.appendRow([key, value, new Date()]);
+}
+
+function daysInMonth_(year, month /* 1-indexed */) {
+  return new Date(year, month, 0).getDate();
+}
+
+// 'YYYY-MM-DD' one calendar month later, clamped to that month's last real day
+// (so e.g. 31 Jan + 1 month lands on 28/29 Feb, not rolling into March).
+function addOneMonth_(dateISO) {
+  var parts = dateISO.split('-').map(Number);
+  var y = parts[0], m = parts[1], d = parts[2];
+  var ny = m === 12 ? y + 1 : y;
+  var nm = m === 12 ? 1 : m + 1;
+  var nd = Math.min(d, daysInMonth_(ny, nm));
+  return ny + '-' + ('' + nm).padStart(2, '0') + '-' + ('' + nd).padStart(2, '0');
+}
 
 // Seeded once, the first time this sheet is created: Yağmur's opening track
 // (Dvořák, Serenade for Strings in E, Op. 22 — II. Tempo di Valse; CC BY-SA 4.0, Wikimedia Commons)
@@ -186,6 +228,10 @@ function doGet(e) {
     return jsonOut_({ rewards: rewards });
   }
 
+  if (action === 'settings') {
+    return jsonOut_({ programEnd: getSetting_('ProgramEnd', DEFAULT_PROGRAM_END) });
+  }
+
   var cdata = completionsSheet_().getDataRange().getValues();
   var completions = {};
   for (var j = 1; j < cdata.length; j++) {
@@ -209,8 +255,20 @@ function doPost(e) {
   if (action === 'upload-image') return uploadImage_(body);
   if (action === 'set-week-reward') return setWeekReward_(body);
   if (action === 'remove-week-reward') return removeWeekReward_(body);
+  if (action === 'extend-month') return extendProgram_(body);
 
   return jsonOut_({ ok: false, error: 'unknown_action' });
+}
+
+// Either of you can push the program's end date out by a month — shared, not
+// per-side, since it changes what week range is navigable for both of you.
+function extendProgram_(body) {
+  var person = personForToken_(body.token);
+  if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
+  var current = getSetting_('ProgramEnd', DEFAULT_PROGRAM_END);
+  var next = addOneMonth_(current);
+  setSetting_('ProgramEnd', next);
+  return jsonOut_({ ok: true, programEnd: next });
 }
 
 // Either signed-in person can set or remove the reward for a completed week — it's a
