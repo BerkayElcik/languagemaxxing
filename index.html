@@ -72,7 +72,7 @@
     *{ animation-duration: .001ms !important; transition-duration: .001ms !important; }
   }
 
-  .wrap{ max-width: 700px; margin: 0 auto; }
+  .wrap{ max-width: 650px; margin: 0 auto; }
 
   .kicker{
     margin: 0 0 4px;
@@ -194,7 +194,7 @@
 
   .stats{
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
     gap: 12px;
     margin-bottom: 12px;
   }
@@ -239,7 +239,7 @@
 
   .progress-row{
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
     gap: 12px;
     margin-bottom: 22px;
   }
@@ -377,7 +377,7 @@
 
   .task.together{ cursor: default; }
   .task.together:hover{ border-color: var(--line); }
-  .pair{ display: flex; gap: 6px; flex: none; }
+  .pair{ display: flex; flex-direction: column; gap: 6px; flex: none; }
   .mini{
     width: 30px; height: 30px;
     flex: none;
@@ -475,11 +475,11 @@
      never shrunk to fit the side columns (that ambiguity was the earlier bug). */
   .page{
     display: grid;
-    grid-template-columns: 260px 700px 260px;
+    grid-template-columns: 260px 650px 260px;
     justify-content: center;
     align-items: start;
     gap: 16px;
-    max-width: 1260px;
+    max-width: 1210px;
     margin: 0 auto;
   }
   /* .wrap's own margin:0 auto is for when it stands alone; as a grid item here, auto
@@ -1057,7 +1057,7 @@
     return '<div class="progress-row">' +
       progressBarHTML('This week', weekStats(monday)) +
       progressBarHTML('All time', allTimeStats(), 'alltime') +
-      progressBarHTML('Together — both joined', togetherStats(), 'together') +
+      progressBarHTML('Together', togetherStats(), 'together') +
       '</div>';
   }
 
