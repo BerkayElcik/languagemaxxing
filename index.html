@@ -1162,6 +1162,9 @@
   function minBoundMonday(){
     var progMin = startOfWeek(new Date(PROGRAM_START + 'T00:00:00'));
     var todayMin = startOfWeek(new Date());
+    // One extra week further back than today's real week, purely so a fully-past
+    // (fully unlockable) week is reachable for testing things like the week-reward slot.
+    todayMin.setDate(todayMin.getDate() - 7);
     return todayMin < progMin ? todayMin : progMin;
   }
 
