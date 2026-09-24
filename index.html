@@ -1065,19 +1065,24 @@
       d.setDate(monday.getDate() + i);
       out += dayCardHTML(i, d, todayISO);
     }
-    out += weekRewardCardHTML(monday);
+    out += weekRewardCardHTML(monday, todayISO);
     return out;
   }
 
   // The grid has one more slot than the week has days (7 doesn't divide evenly into
-  // 3 columns) — that trailing gap next to Sunday becomes a reward: the fail image
-  // until the week's fully done by both of them, then either of them can drop an
-  // image or a note there instead.
-  function weekRewardCardHTML(monday){
+  // 3 columns) — that trailing gap next to Sunday stays blank while the week is still
+  // in progress. Once the week is actually over: the fail image if it wasn't fully
+  // done, or — as soon as it IS fully done, even mid-week — a spot to drop an image
+  // or note instead.
+  function weekRewardCardHTML(monday, todayISO){
     var key = isoDate(monday);
     var s = weekStats(monday);
     var complete = s.total > 0 && s.done === s.total;
+    var sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    var weekOver = isoDate(sunday) < todayISO;
     if (!complete){
+      if (!weekOver) return '';
       return '<div class="day-card week-reward locked">' +
         '<img src="' + FAIL_IMAGE + '" alt="Not worthy yet — finish the week first">' +
         '</div>';
