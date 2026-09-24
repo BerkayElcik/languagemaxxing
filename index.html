@@ -604,25 +604,47 @@
     opacity: .6;
   }
 
-  .music-list{
+  /* Positioned exactly like a sticker (see .board-item) — draggable via its own grip
+     handle only, since the row itself is full of interactive controls. */
+  .music-row{
     position: absolute;
-    top: 46px;
-    left: 12px;
-    right: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    width: 210px;
+    max-width: 80vw;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 10px;
     padding: 6px 8px;
     box-shadow: var(--shadow);
   }
-  .music-row{
+  .music-label{
+    margin: 0 0 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .music-artist{
+    display: block;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--ink-soft);
+  }
+  .music-controls{
     display: flex;
     align-items: center;
     gap: 5px;
   }
+  .music-drag{
+    flex: none;
+    cursor: grab;
+    color: var(--ink-soft);
+    font-size: 13px;
+    line-height: 1;
+    touch-action: none;
+  }
+  .music-drag:active{ cursor: grabbing; }
   .music-btn{
     flex: none;
     width: 24px; height: 24px;
@@ -1385,16 +1407,24 @@
       '</div>';
   }
 
+  // For audio items, Color/Font hold the title/artist text (not styling) — saves adding
+  // yet another sheet column for two plain strings.
   function audioItemHTML(item, canEdit){
     var pid = 'audio-' + item.id;
-    return '<div class="music-row" data-id="' + item.id + '">' +
+    var style = 'left:' + item.x + '%; top:' + item.y + 'px; transform: translate(-50%, -50%);';
+    var title = item.color || '';
+    var artist = item.font || '';
+    return '<div class="music-row' + (canEdit ? ' editable' : '') + '" data-id="' + item.id + '" data-type="audio" style="' + style + '">' +
+      (title || artist ? '<p class="music-label">' + escapeHTML(title) + (artist ? '<span class="music-artist">' + escapeHTML(artist) + '</span>' : '') + '</p>' : '') +
+      '<div class="music-controls">' +
+      (canEdit ? '<span class="music-drag" data-role="move-audio" title="Drag to move">⠿</span>' : '') +
       '<audio id="' + pid + '" src="' + escapeHTML(item.content) + '" preload="none"></audio>' +
       '<button type="button" class="music-btn music-play" data-role="play" data-target="' + pid + '" aria-label="Play">▶</button>' +
       '<button type="button" class="music-btn" data-role="back10" data-target="' + pid + '" aria-label="Back 10 seconds">⏪</button>' +
       '<input type="range" class="music-seek" data-target="' + pid + '" min="0" max="100" value="0">' +
       '<button type="button" class="music-btn" data-role="fwd10" data-target="' + pid + '" aria-label="Forward 10 seconds">⏩</button>' +
       (canEdit ? '<button type="button" class="music-btn music-remove" data-role="remove-audio" data-id="' + item.id + '" aria-label="Remove track">×</button>' : '') +
-      '</div>';
+      '</div></div>';
   }
 
   function renderBoard(side){
@@ -1412,14 +1442,13 @@
       return it.side === side || (it.side === 'shared' && side === 'left');
     });
     function editableFor(it){ return it.side === 'shared' ? !!session : canEdit; }
-    var audioItems = items.filter(function(it){ return it.type === 'audio'; });
-    var visualItems = items.filter(function(it){ return it.type !== 'audio'; });
     el.className = 'side-canvas side-' + side + ' board-surface';
     el.dataset.side = side;
     el.innerHTML = sideAddHTML(side, canEdit) +
-      (audioItems.length ? '<div class="music-list">' + audioItems.map(function(it){ return audioItemHTML(it, editableFor(it)); }).join('') + '</div>' : '') +
-      visualItems.map(function(it){ return boardItemHTML(it, editableFor(it)); }).join('') +
-      (visualItems.length === 0 ? '<div class="board-empty">' + (canEdit ? 'Add an image, text, or music above.' : '') + '</div>' : '');
+      items.map(function(it){
+        return it.type === 'audio' ? audioItemHTML(it, editableFor(it)) : boardItemHTML(it, editableFor(it));
+      }).join('') +
+      (items.length === 0 ? '<div class="board-empty">' + (canEdit ? 'Add an image, text, or music above.' : '') + '</div>' : '');
     fitBoardHeight(el);
   }
 
@@ -1429,7 +1458,7 @@
     if (!el) return;
     var containerTop = el.getBoundingClientRect().top;
     var maxBottom = 0;
-    el.querySelectorAll('.board-item, .music-list').forEach(function(child){
+    el.querySelectorAll('.board-item, .music-row').forEach(function(child){
       var bottom = child.getBoundingClientRect().bottom - containerTop;
       if (bottom > maxBottom) maxBottom = bottom;
     });
@@ -1452,9 +1481,12 @@
       .catch(function(){});
   }
 
-  function addBoardItem(type, content){
+  function addBoardItem(type, content, color, font){
     if (!session) return;
-    fetch(SYNC_URL, { method: 'POST', body: JSON.stringify({ action: 'add-item', token: session.token, type: type, content: content }) })
+    fetch(SYNC_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'add-item', token: session.token, type: type, content: content, color: color, font: font }),
+    })
       .then(function(res){ return res.json(); })
       .then(function(res){ if (res.ok) loadBoard(); });
   }
@@ -1527,10 +1559,17 @@
       }
       if (roleEl && (roleEl.dataset.role === 'color' || roleEl.dataset.role === 'font')) return;
 
-      var itemEl = e.target.closest('.board-item.editable');
-      if (!itemEl) return;
       var isRotateHandle = !!(roleEl && roleEl.dataset.role === 'rotate');
       var isResizeHandle = !!(roleEl && roleEl.dataset.role === 'resize');
+      var isMoveAudioHandle = !!(roleEl && roleEl.dataset.role === 'move-audio');
+
+      // Music rows only start a drag from their grip handle — everything else in the
+      // row (play, seek, remove) needs its normal click, not a move gesture.
+      var itemEl = isMoveAudioHandle
+        ? e.target.closest('.music-row.editable')
+        : e.target.closest('.board-item.editable');
+      if (!itemEl) return;
+      if (itemEl.classList.contains('music-row') && !isMoveAudioHandle) return;
       if (!isRotateHandle && !isResizeHandle && e.target.closest('[contenteditable="true"]')) return; // let text editing focus normally
 
       var surfaceEl = itemEl.closest('.board-surface');
@@ -1543,6 +1582,7 @@
       dragState = {
         itemEl: itemEl, item: item, rect: rect, surfaceEl: surfaceEl,
         mode: isRotateHandle ? 'rotate' : isResizeHandle ? 'resize' : 'move',
+        rotatable: itemEl.dataset.type !== 'audio',
         centerX: centerX, centerY: centerY,
         startScale: item.scale || 1,
         startDist: Math.max(20, Math.hypot(e.clientX - centerX, e.clientY - centerY)),
@@ -1569,7 +1609,9 @@
       }
       dragState.itemEl.style.left = item.x + '%';
       dragState.itemEl.style.top = item.y + 'px';
-      dragState.itemEl.style.transform = 'translate(-50%, -50%) rotate(' + item.rot + 'deg) scale(' + (item.scale || 1) + ')';
+      dragState.itemEl.style.transform = dragState.rotatable
+        ? 'translate(-50%, -50%) rotate(' + item.rot + 'deg) scale(' + (item.scale || 1) + ')'
+        : 'translate(-50%, -50%)';
       fitBoardHeight(dragState.surfaceEl);
     });
 
@@ -1664,7 +1706,11 @@
           pickImageFile();
         } else if (type === 'audio'){
           var murl = window.prompt('Paste a direct audio file URL (mp3/ogg):');
-          if (murl && murl.trim()) addBoardItem('audio', murl.trim());
+          if (murl && murl.trim()){
+            var mtitle = window.prompt('Song title (optional):') || '';
+            var martist = window.prompt('Artist (optional):') || '';
+            addBoardItem('audio', murl.trim(), mtitle.trim(), martist.trim());
+          }
         } else {
           addBoardItem('text', 'Type here');
         }

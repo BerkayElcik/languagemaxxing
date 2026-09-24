@@ -49,20 +49,28 @@ function boardSheet_() {
   return sheet;
 }
 
-// Yağmur: Dvořák, Serenade for Strings, Op. 22 — II. Tempo di Valse (CC BY-SA 4.0, Wikimedia Commons).
-// Berkay: "Cult of Damned" by And Summer Dies (CC BY-NC-ND, Wildness Records netlabel, archive.org).
-var YAGMUR_SEED_TRACK = 'https://upload.wikimedia.org/wikipedia/commons/c/c2/Dvorak_String_Serenade_II_Tempo_di_Valse.ogg';
-var BERKAY_SEED_TRACK = 'https://archive.org/download/Wild057-AndSummerDies/02-CultOfDamned.mp3';
+// All tracks are Creative Commons licensed and individually verified as directly
+// hotlinkable (not a copyrighted commercial release) before being added here.
+var YAGMUR_SEED_TRACKS = [
+  { url: 'https://upload.wikimedia.org/wikipedia/commons/c/c2/Dvorak_String_Serenade_II_Tempo_di_Valse.ogg',
+    title: 'Serenade for Strings — II. Tempo di Valse', artist: 'Antonín Dvořák' },
+];
+var BERKAY_SEED_TRACKS = [
+  { url: 'https://archive.org/download/Wild057-AndSummerDies/02-CultOfDamned.mp3',
+    title: 'Cult of Damned', artist: 'And Summer Dies' },
+  { url: 'https://archive.org/download/Wild089-SmallExperiment-InMyOldAge...OnlyLustAndRage/01-Psycho.mp3',
+    title: 'Psycho', artist: 'Small Experiment' },
+  { url: 'https://archive.org/download/Wild088-Demodeus-lugubreExistencia/05-lugubreExistencia.mp3',
+    title: 'Lugubre Existencia', artist: 'Demodeus' },
+];
 
 function seedBoardDefaults_(sheet) {
-  sheet.appendRow([
-    Utilities.getUuid(), 'right', 'audio', YAGMUR_SEED_TRACK,
-    '', '', 50, 50, 0, 1, 'yagmur', new Date(),
-  ]);
-  sheet.appendRow([
-    Utilities.getUuid(), 'left', 'audio', BERKAY_SEED_TRACK,
-    '', '', 50, 50, 0, 1, 'berkay', new Date(),
-  ]);
+  YAGMUR_SEED_TRACKS.forEach(function(t, idx){
+    sheet.appendRow([Utilities.getUuid(), 'right', 'audio', t.url, t.title, t.artist, 50, 110 + idx * 130, 0, 1, 'yagmur', new Date()]);
+  });
+  BERKAY_SEED_TRACKS.forEach(function(t, idx){
+    sheet.appendRow([Utilities.getUuid(), 'left', 'audio', t.url, t.title, t.artist, 50, 110 + idx * 130, 0, 1, 'berkay', new Date()]);
+  });
   sheet.appendRow([
     Utilities.getUuid(), 'shared', 'image', 'plan.jpg',
     '', '', 15, 70, 0, 1, 'berkay', new Date(),
@@ -84,10 +92,8 @@ function migrateBoardSheet_(sheet) {
   }
   var data = sheet.getDataRange().getValues();
   var hasShared = false;
-  var hasBerkayAudio = false;
   for (var j = 1; j < data.length; j++) {
     if (data[j][1] === 'shared') hasShared = true;
-    if (data[j][1] === 'left' && data[j][2] === 'audio') hasBerkayAudio = true;
   }
   if (!hasShared) {
     sheet.appendRow([
@@ -95,11 +101,44 @@ function migrateBoardSheet_(sheet) {
       '', '', 15, 70, 0, 1, 'berkay', new Date(),
     ]);
   }
-  if (!hasBerkayAudio) {
-    sheet.appendRow([
-      Utilities.getUuid(), 'left', 'audio', BERKAY_SEED_TRACK,
-      '', '', 50, 50, 0, 1, 'berkay', new Date(),
-    ]);
+  ensureSeedTracks_(sheet, data, 'right', 'yagmur', YAGMUR_SEED_TRACKS);
+  ensureSeedTracks_(sheet, data, 'left', 'berkay', BERKAY_SEED_TRACKS);
+  repairShiftedRows_(sheet);
+}
+
+// Appends any seed track not already present (by URL) on that side, and backfills
+// the title/artist label on a matching row that predates labels.
+function ensureSeedTracks_(sheet, data, side, person, tracks) {
+  tracks.forEach(function(t, idx){
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][1] === side && data[i][2] === 'audio' && data[i][3] === t.url) {
+        if (!data[i][4]) {
+          sheet.getRange(i + 1, 5).setValue(t.title);
+          sheet.getRange(i + 1, 6).setValue(t.artist);
+        }
+        return;
+      }
+    }
+    sheet.appendRow([Utilities.getUuid(), side, 'audio', t.url, t.title, t.artist, 50, 110 + idx * 130, 0, 1, person, new Date()]);
+  });
+}
+
+// Rows created by an in-between code version could have been written with only 11
+// values into what was already a 12-column sheet — appendRow fills columns
+// sequentially regardless of header labels, so their AddedBy name landed in the
+// Scale cell instead. Detect that (Scale holding text, not a number) and shift it
+// back rather than losing the row.
+function repairShiftedRows_(sheet) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var scaleCol = sheet.getRange(2, 10, lastRow - 1, 1).getValues();
+  for (var i = 0; i < scaleCol.length; i++) {
+    var value = scaleCol[i][0];
+    if (value === '' || typeof value === 'number') continue;
+    var row = i + 2;
+    sheet.getRange(row, 10).setValue(1); // Scale
+    sheet.getRange(row, 11).setValue(value); // AddedBy (the misplaced value)
+    if (!sheet.getRange(row, 12).getValue()) sheet.getRange(row, 12).setValue(new Date());
   }
 }
 
@@ -251,8 +290,12 @@ function addItem_(body) {
   var type = (body.type === 'text' || body.type === 'audio') ? body.type : 'image';
   var id = Utilities.getUuid();
   var side = sideForPerson_(person);
+  // For audio, Color/Font hold the title/artist text — an explicit empty string means
+  // "left blank", not "use the text-note styling defaults".
+  var color = body.color != null ? body.color : (type === 'audio' ? '' : '#F2DBA8');
+  var font = body.font != null ? body.font : (type === 'audio' ? '' : 'Public Sans');
   boardSheet_().appendRow([
-    id, side, type, body.content || '', body.color || '#F2DBA8', body.font || 'Public Sans',
+    id, side, type, body.content || '', color, font,
     body.x != null ? body.x : 50, body.y != null ? body.y : 50, body.rot != null ? body.rot : 0,
     body.scale != null ? body.scale : 1, person, new Date(),
   ]);
