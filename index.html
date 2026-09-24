@@ -301,6 +301,42 @@
     border-color: var(--common);
     box-shadow: 0 0 0 1.5px var(--common), var(--shadow);
   }
+  .week-reward{
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+    min-height: 120px;
+  }
+  .week-reward.locked{ padding: 10px; }
+  .week-reward img{
+    display: block;
+    max-width: 100%;
+    max-height: 220px;
+    border-radius: 10px;
+    object-fit: contain;
+  }
+  .week-reward-label{
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .week-reward-add{
+    display: flex;
+    gap: 6px;
+  }
+  .week-reward-text{
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+  .week-reward-remove{
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
   .day-name{
     margin: 0;
     font-weight: 600;
@@ -815,8 +851,10 @@
   var syncState = SYNC_URL ? 'connecting' : 'local';
 
   var FONT_OPTIONS = ['Public Sans', 'Newsreader', 'Caveat', 'Bungee', 'Playfair Display'];
+  var FAIL_IMAGE = '3c8f93711d991215decdaf2e44004e46.jpg'; // shown in the Sunday gap until the week's fully done
   var session = null;       // {token, person} — this browser's signed-in identity
   var boardItems = [];      // stickers/text notes from both boards
+  var weekRewards = {};     // { 'YYYY-MM-DD' (that week's Monday): {type, content, color, font} }
   var dragState = null;
   var pendingEmail = '';
 
@@ -1027,7 +1065,44 @@
       d.setDate(monday.getDate() + i);
       out += dayCardHTML(i, d, todayISO);
     }
+    out += weekRewardCardHTML(monday);
     return out;
+  }
+
+  // The grid has one more slot than the week has days (7 doesn't divide evenly into
+  // 3 columns) — that trailing gap next to Sunday becomes a reward: the fail image
+  // until the week's fully done by both of them, then either of them can drop an
+  // image or a note there instead.
+  function weekRewardCardHTML(monday){
+    var key = isoDate(monday);
+    var s = weekStats(monday);
+    var complete = s.total > 0 && s.done === s.total;
+    if (!complete){
+      return '<div class="day-card week-reward locked">' +
+        '<img src="' + FAIL_IMAGE + '" alt="Not worthy yet — finish the week first">' +
+        '</div>';
+    }
+    var reward = weekRewards[key];
+    if (reward){
+      var inner = reward.type === 'image'
+        ? '<img src="' + escapeHTML(reward.content) + '" alt="Week reward">'
+        : '<p class="week-reward-text" style="color:' + escapeHTML(reward.color || '#F2DBA8') +
+          '; font-family:\'' + escapeHTML(reward.font || 'Public Sans') + '\', sans-serif;">' +
+          escapeHTML(reward.content) + '</p>';
+      return '<div class="day-card week-reward">' + inner +
+        (session ? '<button type="button" class="item-btn item-remove week-reward-remove" data-role="remove-reward" data-week="' +
+          key + '" title="Remove">×</button>' : '') +
+        '</div>';
+    }
+    return '<div class="day-card week-reward empty">' +
+      '<p class="week-reward-label">Week complete <span class="eyebrow">🎉</span></p>' +
+      (session
+        ? '<div class="week-reward-add">' +
+          '<button type="button" class="side-add-btn" data-reward-add="image" data-week="' + key + '">+ image</button>' +
+          '<button type="button" class="side-add-btn" data-reward-add="text" data-week="' + key + '">+ text</button>' +
+          '</div>'
+        : '') +
+      '</div>';
   }
 
   function streakTileHTML(owner, monday){
@@ -1499,6 +1574,38 @@
       .catch(function(){});
   }
 
+  function loadRewards(){
+    if (!SYNC_URL) return;
+    fetch(SYNC_URL + '?action=rewards')
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        weekRewards = (data && data.rewards) || {};
+        renderApp();
+      })
+      .catch(function(){});
+  }
+
+  function setWeekReward(week, type, content, color, font){
+    if (!session) return;
+    fetch(SYNC_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'set-week-reward', token: session.token, week: week, type: type, content: content, color: color, font: font }),
+    })
+      .then(function(res){ return res.json(); })
+      .then(function(res){ if (res.ok) loadRewards(); });
+  }
+
+  function removeWeekReward(week){
+    if (!session) return;
+    if (!window.confirm('Remove this for good?')) return;
+    fetch(SYNC_URL, { method: 'POST', body: JSON.stringify({ action: 'remove-week-reward', token: session.token, week: week }) })
+      .then(function(){
+        delete weekRewards[week];
+        renderApp();
+      })
+      .catch(function(){});
+  }
+
   function addBoardItem(type, content, color, font){
     if (!session) return;
     fetch(SYNC_URL, {
@@ -1736,6 +1843,22 @@
         return;
       }
 
+      var rewardAddBtn = e.target.closest('[data-reward-add]');
+      if (rewardAddBtn){
+        var rtype = rewardAddBtn.dataset.rewardAdd;
+        var rweek = rewardAddBtn.dataset.week;
+        if (rtype === 'image'){
+          var rurl = window.prompt('Paste an image URL:');
+          if (rurl && rurl.trim()) setWeekReward(rweek, 'image', rurl.trim());
+        } else {
+          var rtext = window.prompt('Type your note:');
+          if (rtext && rtext.trim()) setWeekReward(rweek, 'text', rtext.trim(), '#F2DBA8', 'Caveat');
+        }
+        return;
+      }
+      var rewardRemoveBtn = e.target.closest('[data-role="remove-reward"]');
+      if (rewardRemoveBtn){ removeWeekReward(rewardRemoveBtn.dataset.week); return; }
+
       var musicBtn = e.target.closest('.music-btn');
       if (musicBtn){
         var role = musicBtn.dataset.role;
@@ -1770,6 +1893,7 @@
     if (SYNC_URL){
       loadFromServer();
       loadBoard();
+      loadRewards();
     } else {
       renderBoards();
     }

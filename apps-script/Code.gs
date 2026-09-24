@@ -30,6 +30,9 @@ function sheet_(name, headerRow) {
 function completionsSheet_() { return sheet_('Completions', ['Key', 'Done', 'UpdatedAt']); }
 function loginCodesSheet_() { return sheet_('LoginCodes', ['Email', 'Code', 'ExpiresAt']); }
 function sessionsSheet_() { return sheet_('Sessions', ['Token', 'Email', 'Person', 'CreatedAt']); }
+// One reward per completed week (Monday's ISO date as the key) — the image/text either
+// of you adds in the blank Sunday slot once that whole week is fully checked off.
+function weekRewardsSheet_() { return sheet_('WeekRewards', ['Week', 'Type', 'Content', 'Color', 'Font', 'AddedBy', 'UpdatedAt']); }
 
 // Seeded once, the first time this sheet is created: Yağmur's opening track
 // (Dvořák, Serenade for Strings in E, Op. 22 — II. Tempo di Valse; CC BY-SA 4.0, Wikimedia Commons)
@@ -174,6 +177,15 @@ function doGet(e) {
     return jsonOut_({ items: items });
   }
 
+  if (action === 'rewards') {
+    var rdata = weekRewardsSheet_().getDataRange().getValues();
+    var rewards = {};
+    for (var k = 1; k < rdata.length; k++) {
+      rewards[rdata[k][0]] = { type: rdata[k][1], content: rdata[k][2], color: rdata[k][3], font: rdata[k][4] };
+    }
+    return jsonOut_({ rewards: rewards });
+  }
+
   var cdata = completionsSheet_().getDataRange().getValues();
   var completions = {};
   for (var j = 1; j < cdata.length; j++) {
@@ -195,8 +207,46 @@ function doPost(e) {
   if (action === 'update-item') return updateItem_(body);
   if (action === 'remove-item') return removeItem_(body);
   if (action === 'upload-image') return uploadImage_(body);
+  if (action === 'set-week-reward') return setWeekReward_(body);
+  if (action === 'remove-week-reward') return removeWeekReward_(body);
 
   return jsonOut_({ ok: false, error: 'unknown_action' });
+}
+
+// Either signed-in person can set or remove the reward for a completed week — it's a
+// joint achievement, not owned by one side. Not re-validating "is the week actually
+// complete" server-side: that check already lives in the client's own schedule/
+// completion logic (duplicating it here would mean keeping two copies of the schedule
+// in sync), and this is a two-person trust-based tool, not an adversarial one.
+function setWeekReward_(body) {
+  var person = personForToken_(body.token);
+  if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
+  if (!body.week || !body.type || !body.content) return jsonOut_({ ok: false, error: 'missing_fields' });
+  var sheet = weekRewardsSheet_();
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === body.week) {
+      sheet.getRange(i + 1, 2, 1, 6).setValues([[body.type, body.content, body.color || '', body.font || '', person, new Date()]]);
+      return jsonOut_({ ok: true });
+    }
+  }
+  sheet.appendRow([body.week, body.type, body.content, body.color || '', body.font || '', person, new Date()]);
+  return jsonOut_({ ok: true });
+}
+
+function removeWeekReward_(body) {
+  var person = personForToken_(body.token);
+  if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
+  if (!body.week) return jsonOut_({ ok: false, error: 'missing_week' });
+  var sheet = weekRewardsSheet_();
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === body.week) {
+      sheet.deleteRow(i + 1);
+      return jsonOut_({ ok: true });
+    }
+  }
+  return jsonOut_({ ok: true });
 }
 
 var MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB
