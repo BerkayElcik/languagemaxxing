@@ -465,30 +465,30 @@
 
   /* Normal document flow, side by side with the tracker — the whole page (boards
      included) scrolls together as one, and grows as tall as its tallest column. */
+  /* Explicit grid tracks, not flex — the middle column is a fixed 700px track,
+     never shrunk to fit the side columns (that ambiguity was the earlier bug). */
   .page{
-    display: flex;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 260px 700px 260px;
     justify-content: center;
+    align-items: start;
     gap: 16px;
     max-width: 1260px;
     margin: 0 auto;
   }
-  .page > .wrap{ flex: none; }
   @media (max-width: 1020px){
-    .page{ flex-direction: column; align-items: stretch; }
+    .page{ grid-template-columns: 1fr; }
   }
 
   /* No card, no border — items sit right on the page background, like the Dutch
      sticker did. Height grows to fit whatever's been placed (see fitBoardHeight). */
   .side-canvas{
     position: relative;
-    flex: none;
-    width: 260px;
     min-height: 320px;
     touch-action: none;
   }
   @media (max-width: 1020px){
-    .side-canvas{ width: 100%; min-height: 160px; }
+    .side-canvas{ min-height: 160px; }
   }
 
   .side-add{
@@ -533,11 +533,10 @@
   /* A visible card, like the music player has — bare floating text had no clear
      grabbable boundary. */
   .board-item[data-type="text"]{
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px 14px;
-    box-shadow: var(--shadow);
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 8px 10px;
   }
   .board-text{
     display: block;
