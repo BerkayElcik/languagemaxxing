@@ -49,11 +49,19 @@ function boardSheet_() {
   return sheet;
 }
 
+// Yağmur: Dvořák, Serenade for Strings, Op. 22 — II. Tempo di Valse (CC BY-SA 4.0, Wikimedia Commons).
+// Berkay: "Cult of Damned" by And Summer Dies (CC BY-NC-ND, Wildness Records netlabel, archive.org).
+var YAGMUR_SEED_TRACK = 'https://upload.wikimedia.org/wikipedia/commons/c/c2/Dvorak_String_Serenade_II_Tempo_di_Valse.ogg';
+var BERKAY_SEED_TRACK = 'https://archive.org/download/Wild057-AndSummerDies/02-CultOfDamned.mp3';
+
 function seedBoardDefaults_(sheet) {
   sheet.appendRow([
-    Utilities.getUuid(), 'right', 'audio',
-    'https://upload.wikimedia.org/wikipedia/commons/c/c2/Dvorak_String_Serenade_II_Tempo_di_Valse.ogg',
+    Utilities.getUuid(), 'right', 'audio', YAGMUR_SEED_TRACK,
     '', '', 50, 50, 0, 1, 'yagmur', new Date(),
+  ]);
+  sheet.appendRow([
+    Utilities.getUuid(), 'left', 'audio', BERKAY_SEED_TRACK,
+    '', '', 50, 50, 0, 1, 'berkay', new Date(),
   ]);
   sheet.appendRow([
     Utilities.getUuid(), 'shared', 'image', 'plan.jpg',
@@ -76,13 +84,21 @@ function migrateBoardSheet_(sheet) {
   }
   var data = sheet.getDataRange().getValues();
   var hasShared = false;
+  var hasBerkayAudio = false;
   for (var j = 1; j < data.length; j++) {
-    if (data[j][1] === 'shared') { hasShared = true; break; }
+    if (data[j][1] === 'shared') hasShared = true;
+    if (data[j][1] === 'left' && data[j][2] === 'audio') hasBerkayAudio = true;
   }
   if (!hasShared) {
     sheet.appendRow([
       Utilities.getUuid(), 'shared', 'image', 'plan.jpg',
       '', '', 15, 70, 0, 1, 'berkay', new Date(),
+    ]);
+  }
+  if (!hasBerkayAudio) {
+    sheet.appendRow([
+      Utilities.getUuid(), 'left', 'audio', BERKAY_SEED_TRACK,
+      '', '', 50, 50, 0, 1, 'berkay', new Date(),
     ]);
   }
 }
