@@ -90,6 +90,12 @@
     letter-spacing: -.01em;
     text-wrap: balance;
   }
+  .title-fr{
+    font-size: 17px;
+    font-weight: 500;
+    font-style: italic;
+    color: var(--yagmur);
+  }
   .view-toggle{
     display: flex;
     justify-content: center;
@@ -1191,7 +1197,7 @@
     var monday = viewedMonday;
     return (
       '<p class="kicker">Weekly language tracker</p>' +
-      '<h1>Sprachpaar</h1>' +
+      '<h1>Sprachpaar <span class="title-fr">/ Couple linguistique</span></h1>' +
       viewToggleHTML() +
       (readOnly ? '<div class="banner">You’re viewing a read-only copy — changes here won’t be saved.</div>' : '') +
       '<div class="stats">' + streakTileHTML('berkay', monday) + streakTileHTML('yagmur', monday) + '</div>' +
