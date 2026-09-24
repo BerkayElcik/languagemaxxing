@@ -1572,17 +1572,12 @@
     }
     var person = side === 'left' ? 'berkay' : 'yagmur';
     var canEdit = !!(session && session.person === person);
-    // Shared items (the Dutch sticker) show up in the left canvas and can be
-    // moved by whichever of the two of you is signed in, not just Berkay.
-    var items = boardItems.filter(function(it){
-      return it.side === side || (it.side === 'shared' && side === 'left');
-    });
-    function editableFor(it){ return it.side === 'shared' ? !!session : canEdit; }
+    var items = boardItems.filter(function(it){ return it.side === side; });
     el.className = 'side-canvas side-' + side + ' board-surface';
     el.dataset.side = side;
     el.innerHTML = sideAddHTML(side, canEdit) +
       items.map(function(it){
-        return it.type === 'audio' ? audioItemHTML(it, editableFor(it)) : boardItemHTML(it, editableFor(it));
+        return it.type === 'audio' ? audioItemHTML(it, canEdit) : boardItemHTML(it, canEdit);
       }).join('') +
       (items.length === 0 ? '<div class="board-empty">' + (canEdit ? 'Add an image, text, or music above.' : '') + '</div>' : '');
     fitBoardHeight(el);
@@ -1717,7 +1712,7 @@
       .then(function(res){ return res.json(); })
       .then(function(res){
         if (res.ok) addBoardItem('image', res.url);
-        else alert('Upload failed — try a different photo.');
+        else alert('Upload failed' + (res.message ? ': ' + res.message : ' — try a different photo.'));
       })
       .catch(function(){ alert('Upload failed — check your connection and try again.'); });
   }

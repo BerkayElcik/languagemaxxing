@@ -78,7 +78,7 @@ function addOneMonth_(dateISO) {
 
 // Seeded once, the first time this sheet is created: Yağmur's opening track
 // (Dvořák, Serenade for Strings in E, Op. 22 — II. Tempo di Valse; CC BY-SA 4.0, Wikimedia Commons)
-// and a shared Dutch van der Linde sticker either of you can move/rotate/resize/remove.
+// and a Dutch van der Linde sticker on Berkay's board.
 // Self-heals an older sheet missing the Scale column or the Dutch seed, instead of
 // requiring anyone to delete real data — real rows (including their x/y/rot) are kept.
 function boardSheet_() {
@@ -117,7 +117,7 @@ function seedBoardDefaults_(sheet) {
     sheet.appendRow([Utilities.getUuid(), 'left', 'audio', t.url, t.title, t.artist, 50, 110 + idx * 130, 0, 1, 'berkay', new Date()]);
   });
   sheet.appendRow([
-    Utilities.getUuid(), 'shared', 'image', 'plan.jpg',
+    Utilities.getUuid(), 'left', 'image', 'plan.jpg',
     '', '', 15, 70, 0, 1, 'berkay', new Date(),
   ]);
 }
@@ -136,13 +136,20 @@ function migrateBoardSheet_(sheet) {
     }
   }
   var data = sheet.getDataRange().getValues();
-  var hasShared = false;
+  var hasDutch = false;
   for (var j = 1; j < data.length; j++) {
-    if (data[j][1] === 'shared') hasShared = true;
+    // The Dutch sticker used to be a 'shared' side, editable by either of you — now
+    // it belongs to Berkay's board only, like everything else there.
+    if (data[j][1] === 'shared') {
+      sheet.getRange(j + 1, 2).setValue('left');
+      hasDutch = true;
+    } else if (data[j][3] === 'plan.jpg') {
+      hasDutch = true;
+    }
   }
-  if (!hasShared) {
+  if (!hasDutch) {
     sheet.appendRow([
-      Utilities.getUuid(), 'shared', 'image', 'plan.jpg',
+      Utilities.getUuid(), 'left', 'image', 'plan.jpg',
       '', '', 15, 70, 0, 1, 'berkay', new Date(),
     ]);
   }
@@ -198,8 +205,7 @@ function personForToken_(token) {
 
 function sideForPerson_(person) { return person === 'berkay' ? 'left' : 'right'; }
 
-// 'shared' items (like the Dutch sticker) can be moved/edited by either signed-in person.
-function canEditItemSide_(itemSide, person) { return itemSide === 'shared' || itemSide === sideForPerson_(person); }
+function canEditItemSide_(itemSide, person) { return itemSide === sideForPerson_(person); }
 
 // ---------- reads ----------
 
@@ -329,10 +335,19 @@ function uploadImage_(body) {
   }
   if (bytes.length > MAX_UPLOAD_BYTES) return jsonOut_({ ok: false, error: 'too_large' });
   var mimeType = body.mimeType || 'image/png';
-  var blob = Utilities.newBlob(bytes, mimeType, 'sticker-' + Utilities.getUuid());
-  var file = uploadsFolder_().createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return jsonOut_({ ok: true, url: 'https://lh3.googleusercontent.com/d/' + file.getId() });
+  // Any Drive failure here (quota, a stale/unauthorized deployment, etc.) used to throw
+  // uncaught, which makes Apps Script return an HTML error page instead of JSON — the
+  // client's res.json() then throws too, surfacing as a generic "check your connection"
+  // error with no way to tell what actually broke. Catching it here keeps the response
+  // valid JSON and reports the real reason.
+  try {
+    var blob = Utilities.newBlob(bytes, mimeType, 'sticker-' + Utilities.getUuid());
+    var file = uploadsFolder_().createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return jsonOut_({ ok: true, url: 'https://lh3.googleusercontent.com/d/' + file.getId() });
+  } catch (err) {
+    return jsonOut_({ ok: false, error: 'drive_error', message: String(err) });
+  }
 }
 
 var CODE_COOLDOWN_MS = 60 * 1000; // don't let one email trigger a new code more than once a minute
