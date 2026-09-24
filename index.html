@@ -476,6 +476,10 @@
     max-width: 1260px;
     margin: 0 auto;
   }
+  /* .wrap's own margin:0 auto is for when it stands alone; as a grid item here, auto
+     margins would make it shrink-to-fit instead of filling its 700px track — which is
+     exactly what was collapsing every auto-fit grid inside it to one column. */
+  .page > .wrap{ margin: 0; width: 100%; }
   @media (max-width: 1020px){
     .page{ grid-template-columns: 1fr; }
   }
