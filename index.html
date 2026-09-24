@@ -942,6 +942,14 @@
     return streak;
   }
 
+  // The program's first real day is PROGRAM_START, even mid-week — days before it in
+  // that same Mon-Sun week aren't part of the program at all (gridHTML hides them),
+  // so stats shouldn't count their tasks as pending either.
+  function clampToProgramStart(d){
+    var startD = new Date(PROGRAM_START + 'T00:00:00');
+    return d < startD ? startD : d;
+  }
+
   // Each solo task is one "planned activity"; a together task is two (one per person),
   // so it counts double toward the shared total — matching how the spreadsheet weighs it.
   function statsForRange(start, end){
@@ -968,7 +976,7 @@
   function weekStats(monday){
     var sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    return statsForRange(monday, sunday);
+    return statsForRange(clampToProgramStart(monday), sunday);
   }
 
   // Never counts past the program's end, even if the site stays open into next year.
@@ -1023,7 +1031,7 @@
   function personWeekStats(owner, monday){
     var sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    return personStatsForRange(owner, monday, sunday);
+    return personStatsForRange(owner, clampToProgramStart(monday), sunday);
   }
 
   function personAllTimeStats(owner){
@@ -1085,9 +1093,11 @@
 
   function gridHTML(monday, todayISO){
     var out = '';
+    var startD = new Date(PROGRAM_START + 'T00:00:00');
     for (var i = 0; i < 7; i++){
       var d = new Date(monday);
       d.setDate(monday.getDate() + i);
+      if (d < startD) continue; // the program hasn't started yet on this day — don't show it
       out += dayCardHTML(i, d, todayISO);
     }
     out += weekRewardCardHTML(monday, todayISO);
@@ -1192,9 +1202,6 @@
   function minBoundMonday(){
     var progMin = startOfWeek(new Date(PROGRAM_START + 'T00:00:00'));
     var todayMin = startOfWeek(new Date());
-    // One extra week further back than today's real week, purely so a fully-past
-    // (fully unlockable) week is reachable for testing things like the week-reward slot.
-    todayMin.setDate(todayMin.getDate() - 7);
     return todayMin < progMin ? todayMin : progMin;
   }
 
