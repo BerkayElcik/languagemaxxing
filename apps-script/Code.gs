@@ -235,7 +235,10 @@ function doGet(e) {
   }
 
   if (action === 'settings') {
-    return jsonOut_({ programEnd: getSetting_('ProgramEnd', DEFAULT_PROGRAM_END) });
+    return jsonOut_({
+      programEnd: getSetting_('ProgramEnd', DEFAULT_PROGRAM_END),
+      requests: getSetting_('YagmurRequests', ''),
+    });
   }
 
   var cdata = completionsSheet_().getDataRange().getValues();
@@ -262,8 +265,18 @@ function doPost(e) {
   if (action === 'set-week-reward') return setWeekReward_(body);
   if (action === 'remove-week-reward') return removeWeekReward_(body);
   if (action === 'extend-month') return extendProgram_(body);
+  if (action === 'set-yagmur-requests') return setYagmurRequests_(body);
 
   return jsonOut_({ ok: false, error: 'unknown_action' });
+}
+
+// Yağmur's own running list of site-edit requests — only she can write it, Berkay
+// only reads it (enforced here, not just hidden in the UI).
+function setYagmurRequests_(body) {
+  var person = personForToken_(body.token);
+  if (person !== 'yagmur') return jsonOut_({ ok: false, error: 'not_authenticated' });
+  setSetting_('YagmurRequests', body.text || '');
+  return jsonOut_({ ok: true });
 }
 
 // Either of you can push the program's end date out by a month — shared, not

@@ -807,6 +807,62 @@
     cursor: pointer;
     text-decoration: underline;
   }
+
+  .requests-box{
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    width: 230px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: var(--shadow);
+    z-index: 30;
+  }
+  .requests-title{
+    margin: 0 0 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--yagmur-ink);
+  }
+  .requests-textarea{
+    display: block;
+    width: 100%;
+    min-height: 90px;
+    resize: vertical;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--ink);
+    box-sizing: border-box;
+  }
+  .requests-textarea:disabled{ opacity: .75; cursor: default; }
+  .requests-actions{ display: flex; justify-content: flex-end; margin-top: 6px; }
+  .requests-save{
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .requests-save:hover{ color: var(--ink); border-color: var(--ink-soft); }
+  .requests-note{
+    margin: 6px 0 0;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    text-align: right;
+    min-height: 12px;
+  }
+  @media (max-width: 720px){
+    .requests-box{ width: 180px; }
+  }
 </style>
 </head>
 <body>
@@ -834,6 +890,15 @@
     <p id="login-error" class="login-error" hidden></p>
     <button type="button" id="login-cancel" class="login-cancel">Cancel</button>
   </div>
+</div>
+
+<div class="requests-box" id="requests-box">
+  <p class="requests-title">Yağmur'un İstekleri</p>
+  <textarea id="requests-text" class="requests-textarea" placeholder="Sitede değiştirmek istediğin şeyleri buraya yaz…"></textarea>
+  <div class="requests-actions">
+    <button type="button" id="requests-save" class="requests-save" hidden>Kaydet</button>
+  </div>
+  <p class="requests-note" id="requests-note"></p>
 </div>
 
 <script id="app-script">
@@ -866,6 +931,7 @@
   var PROGRAM_START = '2026-09-26';
   var DEFAULT_PROGRAM_END = '2026-12-31';
   var programEnd = DEFAULT_PROGRAM_END; // can grow — see loadSettings()/extendProgram() below
+  var yagmurRequests = ''; // Yağmur's running list of site-edit requests — see loadSettings()/saveRequests()
 
   var state = readInitialState();
   var readOnly = false;
@@ -1427,6 +1493,20 @@
     } else {
       el.innerHTML = '<button type="button" id="signin-btn" class="auth-btn">Sign in</button>';
     }
+    renderRequestsBox();
+  }
+
+  // Only Yağmur can write in it (so it stays her running list of site-edit requests),
+  // but it's visible read-only to Berkay too so he knows what she's asked for.
+  function renderRequestsBox(){
+    var box = document.getElementById('requests-box');
+    if (!box) return;
+    var textarea = document.getElementById('requests-text');
+    var saveBtn = document.getElementById('requests-save');
+    var canEdit = !!(SYNC_URL && session && session.person === 'yagmur');
+    if (document.activeElement !== textarea) textarea.value = yagmurRequests;
+    textarea.disabled = !canEdit;
+    saveBtn.hidden = !canEdit;
   }
 
   function openLogin(){
@@ -1650,9 +1730,32 @@
       .then(function(res){ return res.json(); })
       .then(function(data){
         if (data && data.programEnd) programEnd = data.programEnd;
+        if (data && typeof data.requests === 'string') yagmurRequests = data.requests;
         renderApp();
+        renderRequestsBox();
       })
       .catch(function(){});
+  }
+
+  function saveRequests(){
+    if (!session || session.person !== 'yagmur') return;
+    var textarea = document.getElementById('requests-text');
+    var note = document.getElementById('requests-note');
+    var text = textarea.value;
+    fetch(SYNC_URL, { method: 'POST', body: JSON.stringify({ action: 'set-yagmur-requests', token: session.token, text: text }) })
+      .then(function(res){ return res.json(); })
+      .then(function(res){
+        if (res.ok){
+          yagmurRequests = text;
+          if (note){
+            note.textContent = 'Kaydedildi';
+            setTimeout(function(){ if (note.textContent === 'Kaydedildi') note.textContent = ''; }, 2000);
+          }
+        } else if (note) {
+          note.textContent = 'Kaydedilemedi — tekrar dene.';
+        }
+      })
+      .catch(function(){ if (note) note.textContent = 'Kaydedilemedi — bağlantını kontrol et.'; });
   }
 
   function extendProgram(){
@@ -1889,6 +1992,7 @@
       if (e.target.id === 'login-verify'){ verifyCode(); return; }
       if (e.target.id === 'login-overlay'){ closeLogin(); return; }
       if (e.target.id === 'extend-month-btn'){ extendProgram(); return; }
+      if (e.target.id === 'requests-save'){ saveRequests(); return; }
 
       var addBtn = e.target.closest('[data-add]');
       if (addBtn){
