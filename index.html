@@ -237,41 +237,13 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .class-counts{
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 12px 16px;
-    box-shadow: var(--shadow);
-    margin-bottom: 22px;
-  }
-  .class-counts-title{
-    margin: 0 0 8px;
-    font-size: 12.5px;
+  .stats-link-row{ text-align: center; margin: 0 0 18px; }
+  .stats-link{
+    font-size: 12px;
     font-weight: 600;
-    color: var(--ink-soft);
+    color: var(--common);
+    text-decoration: underline;
   }
-  .class-count-row{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 5px 0;
-    border-top: 1px solid var(--line);
-    font-size: 12.5px;
-  }
-  .class-count-row:first-of-type{ border-top: none; }
-  .class-count-name{ color: var(--ink); }
-  .class-count-nums{
-    display: flex;
-    gap: 10px;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 11.5px;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-  .count-b{ color: var(--berkay); }
-  .count-y{ color: var(--yagmur); }
 
   .progress-row{
     display: grid;
@@ -1387,48 +1359,6 @@
       '</div>';
   }
 
-  // How many times each of you has ever completed each class of activity — every
-  // scheduled task (by its activity name) plus every custom study (by its chosen
-  // class), counted from the program's start through today.
-  function classCounts(){
-    var counts = {};
-    ACTIVITY_CLASSES.forEach(function(c){ counts[c] = { berkay: 0, yagmur: 0 }; });
-
-    var cursor = new Date(PROGRAM_START + 'T00:00:00');
-    var end = programCappedToday();
-    while (cursor <= end){
-      var idx = (cursor.getDay() + 6) % 7;
-      var dISO = isoDate(cursor);
-      SCHEDULE[idx].forEach(function(t){
-        if (!counts[t.activity]) counts[t.activity] = { berkay: 0, yagmur: 0 };
-        if (t.type === 'together'){
-          if (state.completions[dISO + ':' + t.id + ':berkay']) counts[t.activity].berkay++;
-          if (state.completions[dISO + ':' + t.id + ':yagmur']) counts[t.activity].yagmur++;
-        } else if (state.completions[dISO + ':' + t.id]){
-          counts[t.activity][t.owner]++;
-        }
-      });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-
-    customTasks.forEach(function(ct){
-      if (!counts[ct.activity]) counts[ct.activity] = { berkay: 0, yagmur: 0 };
-      if (state.completions[ct.date + ':' + ct.id]) counts[ct.activity][ct.owner]++;
-    });
-
-    return counts;
-  }
-
-  function classCountsHTML(){
-    var counts = classCounts();
-    var rows = ACTIVITY_CLASSES.map(function(c){
-      var v = counts[c] || { berkay: 0, yagmur: 0 };
-      return '<div class="class-count-row"><span class="class-count-name">' + escapeHTML(c) + '</span>' +
-        '<span class="class-count-nums"><span class="count-b">B ' + v.berkay + '</span><span class="count-y">Y ' + v.yagmur + '</span></span></div>';
-    }).join('');
-    return '<div class="class-counts"><p class="class-counts-title">Times done</p>' + rows + '</div>';
-  }
-
   function progressBarHTML(label, s, modifier){
     var pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
     return '<div class="progress' + (modifier ? ' ' + modifier : '') + '">' +
@@ -1585,7 +1515,7 @@
       viewToggleHTML() +
       (readOnly ? '<div class="banner">You’re viewing a read-only copy — changes here won’t be saved.</div>' : '') +
       '<div class="stats">' + streakTileHTML('berkay', monday) + streakTileHTML('yagmur', monday) + '</div>' +
-      classCountsHTML() +
+      '<div class="stats-link-row"><a href="stats.html" class="stats-link">Activity stats →</a></div>' +
       (viewMode === 'week'
         ? weekNavHTML(monday) + progressHTML(monday) + '<div class="day-grid">' + gridHTML(monday, todayISO) + '</div>'
         : allWeeksHTML(todayISO)) +

@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sprachpaar — Activity stats</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    color-scheme: dark;
+    --bg: #000000;
+    --surface: #121615;
+    --surface-2: #191D1B;
+    --ink: #F2F4F0;
+    --ink-soft: #9AA69C;
+    --line: #2B332C;
+    --berkay: #86B4E2;
+    --berkay-soft: #223349;
+    --yagmur: #E794B4;
+    --yagmur-soft: #3A2530;
+    --common: #DDAE5E;
+    --shadow: 0 1px 2px rgba(0,0,0,.5), 0 10px 26px -14px rgba(0,0,0,.7);
+  }
+  *{ box-sizing: border-box; }
+  html, body{ margin: 0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Public Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+    padding: 28px 20px 40px;
+  }
+  .wrap{ max-width: 620px; margin: 0 auto; }
+
+  .back-link{
+    display: inline-block;
+    margin-bottom: 16px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-decoration: underline;
+  }
+  .back-link:hover{ color: var(--ink); }
+
+  .kicker{
+    margin: 0 0 4px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  h1{
+    margin: 0 0 6px;
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 600;
+    font-size: 30px;
+    letter-spacing: -.01em;
+  }
+  .sub{
+    margin: 0 0 22px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  .table-card{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  table{
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td{
+    padding: 10px 12px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  th:first-child, td:first-child{ text-align: left; }
+  thead th{
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  th.col-berkay, td.col-berkay{ color: var(--berkay); }
+  th.col-yagmur, td.col-yagmur{ color: var(--yagmur); }
+  tbody td.col-berkay, tbody td.col-yagmur{ font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; }
+  tbody td:first-child{ color: var(--ink); font-size: 13.5px; }
+  tbody tr:nth-child(even){ background: var(--surface-2); }
+  tbody tr:not(:last-child) td{ border-bottom: 1px solid var(--line); }
+  tfoot td{
+    font-weight: 700;
+    border-top: 2px solid var(--line);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  tfoot td:first-child{ font-family: "Public Sans", sans-serif; color: var(--ink); }
+
+  .state-note{
+    padding: 16px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="index.html" class="back-link">‹ Back to tracker</a>
+  <p class="kicker">Sprachpaar</p>
+  <h1>Activity stats</h1>
+  <p class="sub">How many times each of you has completed each kind of activity, scheduled or added.</p>
+  <div class="table-card" id="table-card">
+    <p class="state-note">Loading…</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  var SYNC_URL = 'https://script.google.com/macros/s/AKfycbyvEOljIleejwytQQpaZ3EiPrtD-n84v7ANld2E4KNDZzg_B4Io3Uwryg8KJJI7khfY4w/exec';
+
+  var SCHEDULE = [
+    [ {id:'mon-reading', activity:'Reading', type:'solo', owner:'berkay'},
+      {id:'mon-study',   activity:'Study',   type:'solo', owner:'yagmur'},
+      {id:'mon-course',  activity:'Course',  type:'solo', owner:'yagmur'} ],
+    [ {id:'tue-exercise', activity:'Exercise', type:'together'} ],
+    [ {id:'wed-reading', activity:'Reading', type:'solo', owner:'berkay'},
+      {id:'wed-study',   activity:'Study',   type:'solo', owner:'yagmur'},
+      {id:'wed-course',  activity:'Course',  type:'solo', owner:'yagmur'} ],
+    [ {id:'thu-qa', activity:'Q&A', type:'together'} ],
+    [],
+    [ {id:'sat-intense', activity:'Intense study', type:'together'} ],
+    [ {id:'sun-study', activity:'Study', type:'solo', owner:'yagmur'} ]
+  ];
+  var ACTIVITY_CLASSES = [
+    'Reading', 'Study', 'Course', 'Exercise', 'Q&A', 'Intense study',
+    'Watching a movie', 'Playing a game', 'Speaking lesson', 'Speaking with random locals',
+  ];
+  var PROGRAM_START = '2026-09-26';
+  var DEFAULT_PROGRAM_END = '2026-12-31';
+
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function isoDate(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function escapeHTML(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  // Never counts past the program's end, even if the page stays open into next year —
+  // matches how the main tracker caps "all time" stats.
+  function cappedToday(programEnd){
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var end = new Date(programEnd + 'T00:00:00');
+    return today > end ? end : today;
+  }
+
+  // How many times each of you has ever completed each class of activity — every
+  // scheduled task (by its activity name) plus every custom study (by its chosen
+  // class), counted from the program's start through today.
+  function classCounts(completions, customTasks, programEnd){
+    var counts = {};
+    ACTIVITY_CLASSES.forEach(function(c){ counts[c] = { berkay: 0, yagmur: 0 }; });
+
+    var cursor = new Date(PROGRAM_START + 'T00:00:00');
+    var end = cappedToday(programEnd);
+    while (cursor <= end){
+      var idx = (cursor.getDay() + 6) % 7;
+      var dISO = isoDate(cursor);
+      SCHEDULE[idx].forEach(function(t){
+        if (!counts[t.activity]) counts[t.activity] = { berkay: 0, yagmur: 0 };
+        if (t.type === 'together'){
+          if (completions[dISO + ':' + t.id + ':berkay']) counts[t.activity].berkay++;
+          if (completions[dISO + ':' + t.id + ':yagmur']) counts[t.activity].yagmur++;
+        } else if (completions[dISO + ':' + t.id]){
+          counts[t.activity][t.owner]++;
+        }
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    customTasks.forEach(function(ct){
+      if (!counts[ct.activity]) counts[ct.activity] = { berkay: 0, yagmur: 0 };
+      if (completions[ct.date + ':' + ct.id]) counts[ct.activity][ct.owner]++;
+    });
+
+    return counts;
+  }
+
+  function tableHTML(counts){
+    var totalB = 0, totalY = 0;
+    var rows = ACTIVITY_CLASSES.map(function(c){
+      var v = counts[c] || { berkay: 0, yagmur: 0 };
+      totalB += v.berkay;
+      totalY += v.yagmur;
+      return '<tr><td>' + escapeHTML(c) + '</td>' +
+        '<td class="col-berkay">' + v.berkay + '</td>' +
+        '<td class="col-yagmur">' + v.yagmur + '</td></tr>';
+    }).join('');
+    return '<table>' +
+      '<thead><tr><th>Activity</th><th class="col-berkay">🇩🇪 Berkay</th><th class="col-yagmur">🇫🇷 Yağmur</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+      '<tfoot><tr><td>Total</td><td class="col-berkay">' + totalB + '</td><td class="col-yagmur">' + totalY + '</td></tr></tfoot>' +
+      '</table>';
+  }
+
+  if (!SYNC_URL){
+    document.getElementById('table-card').innerHTML = '<p class="state-note">No sync URL configured — stats need a connected sheet.</p>';
+    return;
+  }
+
+  Promise.all([
+    fetch(SYNC_URL).then(function(r){ return r.json(); }),
+    fetch(SYNC_URL + '?action=custom-tasks').then(function(r){ return r.json(); }),
+    fetch(SYNC_URL + '?action=settings').then(function(r){ return r.json(); }),
+  ])
+    .then(function(results){
+      var completions = (results[0] && results[0].completions) || {};
+      var customTasks = (results[1] && results[1].customTasks) || [];
+      var programEnd = (results[2] && results[2].programEnd) || DEFAULT_PROGRAM_END;
+      var counts = classCounts(completions, customTasks, programEnd);
+      document.getElementById('table-card').innerHTML = tableHTML(counts);
+    })
+    .catch(function(){
+      document.getElementById('table-card').innerHTML = '<p class="state-note">Couldn’t reach the shared sheet — check your connection.</p>';
+    });
+})();
+</script>
+</body>
+</html>
