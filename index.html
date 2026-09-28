@@ -1035,6 +1035,12 @@
     return t._hours;
   }
 
+  // For displaying an hours total: '4h', '2.5h' — never '2.50h'.
+  function fmtHours(h){
+    var r = Math.round(h * 100) / 100;
+    return (r % 1 === 0 ? r : String(r)) + 'h';
+  }
+
   // Studies either of you added outside the fixed weekly schedule.
   function customTasksForDay(dISO){
     return customTasks.filter(function(ct){ return ct.date === dISO; });
@@ -1085,43 +1091,14 @@
     return d < startD ? startD : d;
   }
 
-  // Each solo task is one "planned activity"; a together task is two (one per person),
-  // so it counts double toward the shared total — matching how the spreadsheet weighs it.
-  function statsForRange(start, end){
-    var total = 0, done = 0;
+  // Every stat below is counted in hours, not task counts — a scheduled task and a
+  // custom study of the same length count the same toward it, and hours can come from
+  // either kind, on any day in range. That's what lets "2h Vocabulary + 2h Q&A" stand
+  // in for a missed "4h Study" task: the total is what matters, not which task supplied it.
+  function personRequiredHoursForRange(owner, start, end){
     var cursor = new Date(start);
-    while (cursor <= end){
-      var idx = (cursor.getDay() + 6) % 7;
-      var dISO = isoDate(cursor);
-      SCHEDULE[idx].forEach(function(t){
-        if (t.type === 'together'){
-          total += 2;
-          if (state.completions[dISO + ':' + t.id + ':berkay']) done++;
-          if (state.completions[dISO + ':' + t.id + ':yagmur']) done++;
-        } else {
-          total++;
-          if (state.completions[dISO + ':' + t.id]) done++;
-        }
-      });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return { total: total, done: done };
-  }
-
-  function weekStats(monday){
-    var sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return statsForRange(clampToProgramStart(monday), sunday);
-  }
-
-  // How many hours that person's own schedule calls for this week (their solo tasks
-  // plus every together task, since a together task still needs them there).
-  function personRequiredHoursForWeek(owner, monday){
-    var sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    var cursor = new Date(clampToProgramStart(monday));
     var total = 0;
-    while (cursor <= sunday){
+    while (cursor <= end){
       var idx = (cursor.getDay() + 6) % 7;
       SCHEDULE[idx].forEach(function(t){
         if (t.type === 'together' || t.owner === owner) total += taskHours(t);
@@ -1131,16 +1108,10 @@
     return total;
   }
 
-  // Hours that person actually logged this week, from wherever in the week they logged
-  // them — a scheduled task done on its usual day, or a custom study added on a
-  // different day entirely. That's what lets an extra Monday session cover a missed
-  // Tuesday slot: the week only cares about the total, not which day it landed on.
-  function personActualHoursForWeek(owner, monday){
-    var sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    var cursor = new Date(clampToProgramStart(monday));
+  function personActualHoursForRange(owner, start, end){
+    var cursor = new Date(start);
     var total = 0;
-    while (cursor <= sunday){
+    while (cursor <= end){
       var idx = (cursor.getDay() + 6) % 7;
       var dISO = isoDate(cursor);
       SCHEDULE[idx].forEach(function(t){
@@ -1158,6 +1129,22 @@
     return total;
   }
 
+  function personRequiredHoursForWeek(owner, monday){
+    var sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return personRequiredHoursForRange(owner, clampToProgramStart(monday), sunday);
+  }
+
+  // Hours that person actually logged this week, from wherever in the week they logged
+  // them — a scheduled task done on its usual day, or a custom study added on a
+  // different day entirely. That's what lets an extra Monday session cover a missed
+  // Tuesday slot: the week only cares about the total, not which day it landed on.
+  function personActualHoursForWeek(owner, monday){
+    var sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return personActualHoursForRange(owner, clampToProgramStart(monday), sunday);
+  }
+
   // Gates the week-reward sticker: each of you needs to have logged at least as many
   // hours as your own schedule called for that week, but it no longer has to be the
   // exact task on the exact day — hours can shift between days within the same week.
@@ -1169,6 +1156,16 @@
       personActualHoursForWeek('yagmur', monday) >= reqY;
   }
 
+  function personWeekStats(owner, monday){
+    return { total: personRequiredHoursForWeek(owner, monday), done: personActualHoursForWeek(owner, monday) };
+  }
+
+  function weekStats(monday){
+    var b = personWeekStats('berkay', monday);
+    var y = personWeekStats('yagmur', monday);
+    return { total: b.total + y.total, done: b.done + y.done };
+  }
+
   // Never counts past the program's end, even if the site stays open into next year.
   function programCappedToday(){
     var today = new Date();
@@ -1177,12 +1174,22 @@
     return today > end ? end : today;
   }
 
-  function allTimeStats(){
+  function personAllTimeStats(owner){
     var start = new Date(state.startDate + 'T00:00:00');
-    return statsForRange(start, programCappedToday());
+    var end = programCappedToday();
+    return { total: personRequiredHoursForRange(owner, start, end), done: personActualHoursForRange(owner, start, end) };
   }
 
-  // The joint "together" score: only rises when BOTH of them checked in for that session.
+  function allTimeStats(){
+    var b = personAllTimeStats('berkay');
+    var y = personAllTimeStats('yagmur');
+    return { total: b.total + y.total, done: b.done + y.done };
+  }
+
+  // The joint "together" score: only rises when BOTH of them checked in for that
+  // session. This one stays a count of sessions, not hours — the point is whether you
+  // showed up together, not how long it ran, and there's no such thing as a custom
+  // "together" study to fold in.
   function togetherStats(){
     var start = new Date(state.startDate + 'T00:00:00');
     var today = programCappedToday();
@@ -1199,34 +1206,6 @@
       cursor.setDate(cursor.getDate() + 1);
     }
     return { total: total, done: done };
-  }
-
-  // A person's own completion rate: their solo tasks plus just their own box on
-  // together tasks (unlike statsForRange, which weighs a together task as two).
-  function personStatsForRange(owner, start, end){
-    var total = 0, done = 0;
-    var cursor = new Date(start);
-    while (cursor <= end){
-      var idx = (cursor.getDay() + 6) % 7;
-      var dISO = isoDate(cursor);
-      tasksForOwnerOnDay(idx, owner).forEach(function(t){
-        total++;
-        if (isDoneForOwner(t, dISO, owner)) done++;
-      });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return { total: total, done: done };
-  }
-
-  function personWeekStats(owner, monday){
-    var sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return personStatsForRange(owner, clampToProgramStart(monday), sunday);
-  }
-
-  function personAllTimeStats(owner){
-    var start = new Date(state.startDate + 'T00:00:00');
-    return personStatsForRange(owner, start, programCappedToday());
   }
 
   function escapeHTML(s){
@@ -1359,19 +1338,24 @@
       '</div>';
   }
 
-  function progressBarHTML(label, s, modifier){
+  // isHours: 'This week'/'All time' count hours (so 6.5/4 done is real — a surplus,
+  // not a bug), while 'Together' counts sessions and should read as plain numbers.
+  function progressBarHTML(label, s, modifier, isHours){
     var pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
+    var barPct = Math.max(0, Math.min(100, pct));
+    var doneLabel = isHours ? fmtHours(s.done) : s.done;
+    var totalLabel = isHours ? fmtHours(s.total) : s.total;
     return '<div class="progress' + (modifier ? ' ' + modifier : '') + '">' +
-      '<div class="progress-head"><span>' + label + '</span><span>' + s.done + '/' + s.total + ' done · ' + pct + '%</span></div>' +
-      '<div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="progress-head"><span>' + label + '</span><span>' + doneLabel + '/' + totalLabel + ' done · ' + pct + '%</span></div>' +
+      '<div class="bar"><div class="bar-fill" style="width:' + barPct + '%"></div></div>' +
       '</div>';
   }
 
   function progressHTML(monday){
     return '<div class="progress-row">' +
-      progressBarHTML('This week', weekStats(monday)) +
-      progressBarHTML('All time', allTimeStats(), 'alltime') +
-      progressBarHTML('Together', togetherStats(), 'together') +
+      progressBarHTML('This week', weekStats(monday), null, true) +
+      progressBarHTML('All time', allTimeStats(), 'alltime', true) +
+      progressBarHTML('Together', togetherStats(), 'together', false) +
       '</div>';
   }
 
@@ -1492,7 +1476,7 @@
     return '<div class="week-block' + (isCurrent ? ' current' : '') + '">' +
       '<div class="week-block-head">' +
       '<span class="week-block-label">' + weekLabel(monday) + (isCurrent ? ' <span class="eyebrow">This week</span>' : '') + '</span>' +
-      '<span class="week-block-pct">' + s.done + '/' + s.total + ' · ' + pct + '%</span>' +
+      '<span class="week-block-pct">' + fmtHours(s.done) + '/' + fmtHours(s.total) + ' · ' + pct + '%</span>' +
       '</div>' +
       '<div class="day-grid">' + gridHTML(monday, todayISO) + '</div>' +
       '</div>';
