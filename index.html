@@ -237,6 +237,42 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .class-counts{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 16px;
+    box-shadow: var(--shadow);
+    margin-bottom: 22px;
+  }
+  .class-counts-title{
+    margin: 0 0 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .class-count-row{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 5px 0;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+  }
+  .class-count-row:first-of-type{ border-top: none; }
+  .class-count-name{ color: var(--ink); }
+  .class-count-nums{
+    display: flex;
+    gap: 10px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .count-b{ color: var(--berkay); }
+  .count-y{ color: var(--yagmur); }
+
   .progress-row{
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
@@ -368,6 +404,12 @@
     color: var(--ink-soft);
     font-style: italic;
   }
+
+  .task-row-wrap{ display: flex; align-items: center; gap: 6px; }
+  .task-row-wrap .task{ flex: 1; min-width: 0; }
+  .task-remove{ flex: none; }
+
+  .add-study-btn{ align-self: flex-start; }
 
   .task{
     --accent: var(--ink-soft);
@@ -892,6 +934,18 @@
   </div>
 </div>
 
+<div class="login-overlay" id="add-study-overlay" hidden>
+  <div class="login-box">
+    <p class="login-title">Add a study</p>
+    <p class="login-sub" id="add-study-sub"></p>
+    <select id="add-study-class" class="login-input"></select>
+    <input type="number" id="add-study-hours" class="login-input" min="0.25" max="24" step="0.25" value="1" placeholder="Hours">
+    <button type="button" id="add-study-confirm" class="login-btn">Add</button>
+    <p id="add-study-error" class="login-error" hidden></p>
+    <button type="button" id="add-study-cancel" class="login-cancel">Cancel</button>
+  </div>
+</div>
+
 <div class="requests-box" id="requests-box">
   <p class="requests-title">Yağmur'un İstekleri</p>
   <textarea id="requests-text" class="requests-textarea" placeholder="Sitede değiştirmek istediğin şeyleri buraya yaz…"></textarea>
@@ -939,11 +993,19 @@
 
   var FONT_OPTIONS = ['Public Sans', 'Newsreader', 'Caveat', 'Bungee', 'Playfair Display'];
   var FAIL_IMAGE = '3c8f93711d991215decdaf2e44004e46.jpg'; // shown in the Sunday gap until the week's fully done
+  // The fixed set of classes a custom study can be added as — the activities already in
+  // SCHEDULE, plus a few extra ones that never had a dedicated slot.
+  var ACTIVITY_CLASSES = [
+    'Reading', 'Study', 'Course', 'Exercise', 'Q&A', 'Intense study',
+    'Watching a movie', 'Playing a game', 'Speaking lesson', 'Speaking with random locals',
+  ];
   var session = null;       // {token, person} — this browser's signed-in identity
   var boardItems = [];      // stickers/text notes from both boards
   var weekRewards = {};     // { 'YYYY-MM-DD' (that week's Monday): {type, content, color, font} }
+  var customTasks = [];     // studies added outside the fixed schedule — {id, date, owner, activity, hours}
   var dragState = null;
   var pendingEmail = '';
+  var pendingStudyDate = null; // day the "+ study" overlay is currently adding to
 
   function readInitialState(){
     var parsed = null;
@@ -978,6 +1040,41 @@
 
   function tasksForOwnerOnDay(idx, owner){
     return SCHEDULE[idx].filter(function(t){ return t.type === 'together' || t.owner === owner; });
+  }
+
+  // 'HH:MM–HH:MM' -> duration in hours, handling a range that crosses midnight
+  // (e.g. '20:00–00:00' is 4 hours, not negative).
+  function parseHours(timeRange){
+    var parts = String(timeRange).split('–');
+    if (parts.length !== 2) return 0;
+    var toMinutes = function(hm){
+      var bits = hm.split(':').map(Number);
+      return bits[0] * 60 + (bits[1] || 0);
+    };
+    var start = toMinutes(parts[0]);
+    var end = toMinutes(parts[1]);
+    if (end <= start) end += 24 * 60;
+    return (end - start) / 60;
+  }
+
+  function taskHours(t){
+    if (t.hours != null) return t.hours;
+    if (t._hours == null) t._hours = parseHours(t.time);
+    return t._hours;
+  }
+
+  // Studies either of you added outside the fixed weekly schedule.
+  function customTasksForDay(dISO){
+    return customTasks.filter(function(ct){ return ct.date === dISO; });
+  }
+
+  function customTaskAsTask(ct){
+    var hours = Number(ct.hours);
+    return {
+      id: ct.id, activity: ct.activity, owner: ct.owner, type: 'solo',
+      hours: hours, custom: true,
+      time: hours + (hours === 1 ? ' hr' : ' hrs'),
+    };
   }
 
   function computeStreak(owner, today){
@@ -1043,6 +1140,61 @@
     var sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
     return statsForRange(clampToProgramStart(monday), sunday);
+  }
+
+  // How many hours that person's own schedule calls for this week (their solo tasks
+  // plus every together task, since a together task still needs them there).
+  function personRequiredHoursForWeek(owner, monday){
+    var sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    var cursor = new Date(clampToProgramStart(monday));
+    var total = 0;
+    while (cursor <= sunday){
+      var idx = (cursor.getDay() + 6) % 7;
+      SCHEDULE[idx].forEach(function(t){
+        if (t.type === 'together' || t.owner === owner) total += taskHours(t);
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return total;
+  }
+
+  // Hours that person actually logged this week, from wherever in the week they logged
+  // them — a scheduled task done on its usual day, or a custom study added on a
+  // different day entirely. That's what lets an extra Monday session cover a missed
+  // Tuesday slot: the week only cares about the total, not which day it landed on.
+  function personActualHoursForWeek(owner, monday){
+    var sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    var cursor = new Date(clampToProgramStart(monday));
+    var total = 0;
+    while (cursor <= sunday){
+      var idx = (cursor.getDay() + 6) % 7;
+      var dISO = isoDate(cursor);
+      SCHEDULE[idx].forEach(function(t){
+        if (t.type === 'together'){
+          if (state.completions[dISO + ':' + t.id + ':' + owner]) total += taskHours(t);
+        } else if (t.owner === owner){
+          if (state.completions[dISO + ':' + t.id]) total += taskHours(t);
+        }
+      });
+      customTasksForDay(dISO).forEach(function(ct){
+        if (ct.owner === owner && state.completions[dISO + ':' + ct.id]) total += Number(ct.hours);
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return total;
+  }
+
+  // Gates the week-reward sticker: each of you needs to have logged at least as many
+  // hours as your own schedule called for that week, but it no longer has to be the
+  // exact task on the exact day — hours can shift between days within the same week.
+  function weekHoursComplete(monday){
+    var reqB = personRequiredHoursForWeek('berkay', monday);
+    var reqY = personRequiredHoursForWeek('yagmur', monday);
+    if (reqB <= 0 && reqY <= 0) return false;
+    return personActualHoursForWeek('berkay', monday) >= reqB &&
+      personActualHoursForWeek('yagmur', monday) >= reqY;
   }
 
   // Never counts past the program's end, even if the site stays open into next year.
@@ -1114,13 +1266,17 @@
   function soloTaskHTML(t, dISO, locked){
     var done = !!state.completions[dISO + ':' + t.id];
     var owner = OWNERS[t.owner];
-    return '<button type="button" class="task owner-' + t.owner + (done ? ' done' : '') + (locked ? ' locked' : '') +
+    var btn = '<button type="button" class="task owner-' + t.owner + (done ? ' done' : '') + (locked ? ' locked' : '') +
       '" data-task="' + t.id + '" data-date="' + dISO + '" aria-pressed="' + done + '"' + (locked ? ' disabled aria-disabled="true" title="You can’t check off a future day yet"' : '') + '>' +
       '<span class="check" aria-hidden="true"></span>' +
       '<span class="task-body"><span class="task-activity">' + escapeHTML(t.activity) +
       '</span><span class="task-time">' + escapeHTML(t.time) + '</span></span>' +
       '<span class="badge" title="' + escapeHTML(owner.name) + '">' + owner.badge + '</span>' +
       '</button>';
+    if (!t.custom || !session || session.person !== t.owner) return btn;
+    var removeBtn = '<button type="button" class="item-btn item-remove task-remove" data-role="remove-custom" data-id="' +
+      t.id + '" title="Remove">×</button>';
+    return '<div class="task-row-wrap">' + btn + removeBtn + '</div>';
   }
 
   function togetherTaskHTML(t, dISO, locked){
@@ -1142,11 +1298,16 @@
     return t.type === 'together' ? togetherTaskHTML(t, dISO, locked) : soloTaskHTML(t, dISO, locked);
   }
 
+  function addStudyHTML(dISO){
+    if (!session) return '';
+    return '<button type="button" class="add-study-btn side-add-btn" data-add-study="' + dISO + '">+ study</button>';
+  }
+
   function dayCardHTML(idx, date, todayISO){
     var dISO = isoDate(date);
     var isToday = dISO === todayISO;
     var isFuture = dISO > todayISO;
-    var tasks = SCHEDULE[idx];
+    var tasks = SCHEDULE[idx].concat(customTasksForDay(dISO).map(customTaskAsTask));
     var tasksHTML = tasks.length
       ? tasks.map(function(t){ return taskRowHTML(t, dISO, isFuture); }).join('')
       : '<p class="rest">Rest day</p>';
@@ -1154,6 +1315,7 @@
       '<div><p class="day-name">' + DAY_NAMES[idx] + (isToday ? ' <span class="eyebrow">Today</span>' : '') + '</p>' +
       '<p class="day-date">' + date.getDate() + ' ' + MONTH_NAMES[date.getMonth()] + '</p></div>' +
       '<div class="tasks">' + tasksHTML + '</div>' +
+      addStudyHTML(dISO) +
       '</div>';
   }
 
@@ -1177,8 +1339,7 @@
   // or note instead.
   function weekRewardCardHTML(monday, todayISO){
     var key = isoDate(monday);
-    var s = weekStats(monday);
-    var complete = s.total > 0 && s.done === s.total;
+    var complete = weekHoursComplete(monday);
     var sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
     var weekOver = isoDate(sunday) < todayISO;
@@ -1224,6 +1385,48 @@
       '<p class="stat-num">' + streak + '<span class="stat-unit">' + (streak === 1 ? ' day streak' : ' day streak') + '</span></p>' +
       '<p class="stat-pct">This week ' + weekPct + '% · All time ' + allPct + '%</p></div>' +
       '</div>';
+  }
+
+  // How many times each of you has ever completed each class of activity — every
+  // scheduled task (by its activity name) plus every custom study (by its chosen
+  // class), counted from the program's start through today.
+  function classCounts(){
+    var counts = {};
+    ACTIVITY_CLASSES.forEach(function(c){ counts[c] = { berkay: 0, yagmur: 0 }; });
+
+    var cursor = new Date(PROGRAM_START + 'T00:00:00');
+    var end = programCappedToday();
+    while (cursor <= end){
+      var idx = (cursor.getDay() + 6) % 7;
+      var dISO = isoDate(cursor);
+      SCHEDULE[idx].forEach(function(t){
+        if (!counts[t.activity]) counts[t.activity] = { berkay: 0, yagmur: 0 };
+        if (t.type === 'together'){
+          if (state.completions[dISO + ':' + t.id + ':berkay']) counts[t.activity].berkay++;
+          if (state.completions[dISO + ':' + t.id + ':yagmur']) counts[t.activity].yagmur++;
+        } else if (state.completions[dISO + ':' + t.id]){
+          counts[t.activity][t.owner]++;
+        }
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    customTasks.forEach(function(ct){
+      if (!counts[ct.activity]) counts[ct.activity] = { berkay: 0, yagmur: 0 };
+      if (state.completions[ct.date + ':' + ct.id]) counts[ct.activity][ct.owner]++;
+    });
+
+    return counts;
+  }
+
+  function classCountsHTML(){
+    var counts = classCounts();
+    var rows = ACTIVITY_CLASSES.map(function(c){
+      var v = counts[c] || { berkay: 0, yagmur: 0 };
+      return '<div class="class-count-row"><span class="class-count-name">' + escapeHTML(c) + '</span>' +
+        '<span class="class-count-nums"><span class="count-b">B ' + v.berkay + '</span><span class="count-y">Y ' + v.yagmur + '</span></span></div>';
+    }).join('');
+    return '<div class="class-counts"><p class="class-counts-title">Times done</p>' + rows + '</div>';
   }
 
   function progressBarHTML(label, s, modifier){
@@ -1382,6 +1585,7 @@
       viewToggleHTML() +
       (readOnly ? '<div class="banner">You’re viewing a read-only copy — changes here won’t be saved.</div>' : '') +
       '<div class="stats">' + streakTileHTML('berkay', monday) + streakTileHTML('yagmur', monday) + '</div>' +
+      classCountsHTML() +
       (viewMode === 'week'
         ? weekNavHTML(monday) + progressHTML(monday) + '<div class="day-grid">' + gridHTML(monday, todayISO) + '</div>'
         : allWeeksHTML(todayISO)) +
@@ -1758,6 +1962,75 @@
       .catch(function(){ if (note) note.textContent = 'Kaydedilemedi — bağlantını kontrol et.'; });
   }
 
+  function loadCustomTasks(){
+    if (!SYNC_URL) return;
+    fetch(SYNC_URL + '?action=custom-tasks')
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        customTasks = (data && data.customTasks) || [];
+        renderApp();
+      })
+      .catch(function(){});
+  }
+
+  // Picking a class (not typing free text) is what lets the stats below the streak
+  // tiles count "how many times" each of you did each kind of thing.
+  function openAddStudy(dISO){
+    if (!session){ openLogin(); return; }
+    pendingStudyDate = dISO;
+    var select = document.getElementById('add-study-class');
+    select.innerHTML = ACTIVITY_CLASSES.map(function(c){ return '<option value="' + escapeHTML(c) + '">' + escapeHTML(c) + '</option>'; }).join('');
+    document.getElementById('add-study-hours').value = '1';
+    document.getElementById('add-study-sub').textContent = 'For ' + formatDate(dISO) + '.';
+    document.getElementById('add-study-error').hidden = true;
+    document.getElementById('add-study-overlay').hidden = false;
+  }
+
+  function closeAddStudy(){
+    document.getElementById('add-study-overlay').hidden = true;
+    pendingStudyDate = null;
+  }
+
+  function showAddStudyError(msg){
+    var el = document.getElementById('add-study-error');
+    el.textContent = msg;
+    el.hidden = false;
+  }
+
+  function submitAddStudy(){
+    if (!session || !pendingStudyDate) return;
+    var activity = document.getElementById('add-study-class').value;
+    var hoursStr = document.getElementById('add-study-hours').value;
+    var hours = Math.round(parseFloat(hoursStr) * 4) / 4;
+    if (!hours || hours <= 0 || hours > 24){
+      showAddStudyError('Enter a number of hours between 0 and 24.');
+      return;
+    }
+    var dISO = pendingStudyDate;
+    fetch(SYNC_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'add-custom-task', token: session.token, date: dISO, activity: activity, hours: hours }),
+    })
+      .then(function(res){ return res.json(); })
+      .then(function(res){
+        if (res.ok){ closeAddStudy(); loadCustomTasks(); }
+        else showAddStudyError('Could not add that — try again.');
+      })
+      .catch(function(){ showAddStudyError('Could not add that — check your connection.'); });
+  }
+
+  function removeCustomTask(id){
+    if (!session) return;
+    if (!window.confirm('Remove this study session?')) return;
+    fetch(SYNC_URL, { method: 'POST', body: JSON.stringify({ action: 'remove-custom-task', token: session.token, id: id }) })
+      .then(function(res){ return res.json(); })
+      .then(function(res){
+        if (res.ok){ customTasks = customTasks.filter(function(ct){ return ct.id !== id; }); renderApp(); }
+        else alert('Could not remove that.');
+      })
+      .catch(function(){});
+  }
+
   function extendProgram(){
     if (!session) return;
     fetch(SYNC_URL, { method: 'POST', body: JSON.stringify({ action: 'extend-month', token: session.token }) })
@@ -1991,6 +2264,9 @@
       if (e.target.id === 'login-send'){ sendCode(); return; }
       if (e.target.id === 'login-verify'){ verifyCode(); return; }
       if (e.target.id === 'login-overlay'){ closeLogin(); return; }
+      if (e.target.id === 'add-study-overlay'){ closeAddStudy(); return; }
+      if (e.target.id === 'add-study-cancel'){ closeAddStudy(); return; }
+      if (e.target.id === 'add-study-confirm'){ submitAddStudy(); return; }
       if (e.target.id === 'extend-month-btn'){ extendProgram(); return; }
       if (e.target.id === 'requests-save'){ saveRequests(); return; }
 
@@ -2011,6 +2287,12 @@
         }
         return;
       }
+
+      var addStudyBtn = e.target.closest('[data-add-study]');
+      if (addStudyBtn){ openAddStudy(addStudyBtn.dataset.addStudy); return; }
+
+      var removeCustomBtn = e.target.closest('[data-role="remove-custom"]');
+      if (removeCustomBtn){ removeCustomTask(removeCustomBtn.dataset.id); return; }
 
       var rewardAddBtn = e.target.closest('[data-reward-add]');
       if (rewardAddBtn){
@@ -2064,6 +2346,7 @@
       loadBoard();
       loadRewards();
       loadSettings();
+      loadCustomTasks();
     } else {
       renderBoards();
     }

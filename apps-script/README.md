@@ -68,7 +68,17 @@ Commit and push that change (or ask Claude to do it). Once it's live:
 
 - Tabs created automatically: **Completions** (checkbox state), **LoginCodes** (temporary
   sign-in codes, 10-minute expiry), **Sessions** (signed-in tokens), **BoardItems**
-  (stickers/text/music per side). You can open any of them to see the raw data.
+  (stickers/text/music per side), **CustomTasks** (studies either of you added outside
+  the fixed weekly schedule, via the "+ study" button on any day). You can open any of
+  them to see the raw data.
+- The week-reward sticker unlocks once each person has logged at least as many hours as
+  their own schedule called for that week — it no longer has to be the exact scheduled
+  task on the exact day, so an extra session on Monday can cover a missed Tuesday slot as
+  long as the weekly hour total is still met.
+- If you already have this script deployed and are just picking up this change: paste the
+  updated `Code.gs` over the old one in the Apps Script editor, save, then
+  **Deploy → Manage deployments → Edit → Deploy** (not a *new* deployment) so `SYNC_URL`
+  in `index.html` keeps working without edits.
 - Emails send via `MailApp`, which runs under whichever Google account you deployed the
   script with, and shares that account's daily sending quota (100/day on a free account —
   far more than two people signing in occasionally will ever need).

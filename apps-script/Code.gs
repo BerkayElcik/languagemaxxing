@@ -8,6 +8,8 @@
 //   BoardItems   — Id | Side | Type | Content | Color | Font | X | Y | Rot | AddedBy | UpdatedAt
 //   WeekRewards  — Week | Type | Content | Color | Font | AddedBy | UpdatedAt
 //   Settings     — Key | Value | UpdatedAt        (currently just ProgramEnd)
+//   CustomTasks  — Id | Date | Owner | Activity | Hours | AddedBy | UpdatedAt
+//                  (studies added outside the fixed weekly schedule)
 //
 // Only these two people can sign in and write anything. Change the emails here if needed.
 var ALLOWED = {
@@ -32,6 +34,9 @@ function sheet_(name, headerRow) {
 function completionsSheet_() { return sheet_('Completions', ['Key', 'Done', 'UpdatedAt']); }
 function loginCodesSheet_() { return sheet_('LoginCodes', ['Email', 'Code', 'ExpiresAt']); }
 function sessionsSheet_() { return sheet_('Sessions', ['Token', 'Email', 'Person', 'CreatedAt']); }
+// Studies added on a day/time outside the fixed weekly schedule — e.g. Berkay adding a
+// Monday evening session that isn't one of his usual slots.
+function customTasksSheet_() { return sheet_('CustomTasks', ['Id', 'Date', 'Owner', 'Activity', 'Hours', 'AddedBy', 'UpdatedAt']); }
 // One reward per completed week (Monday's ISO date as the key) — the image/text either
 // of you adds in the blank Sunday slot once that whole week is fully checked off.
 function weekRewardsSheet_() { return sheet_('WeekRewards', ['Week', 'Type', 'Content', 'Color', 'Font', 'AddedBy', 'UpdatedAt']); }
@@ -241,6 +246,16 @@ function doGet(e) {
     });
   }
 
+  if (action === 'custom-tasks') {
+    var ctData = customTasksSheet_().getDataRange().getValues();
+    var customTasks = [];
+    for (var m = 1; m < ctData.length; m++) {
+      var cr = ctData[m];
+      customTasks.push({ id: cr[0], date: cr[1], owner: cr[2], activity: cr[3], hours: cr[4] });
+    }
+    return jsonOut_({ customTasks: customTasks });
+  }
+
   var cdata = completionsSheet_().getDataRange().getValues();
   var completions = {};
   for (var j = 1; j < cdata.length; j++) {
@@ -266,8 +281,39 @@ function doPost(e) {
   if (action === 'remove-week-reward') return removeWeekReward_(body);
   if (action === 'extend-month') return extendProgram_(body);
   if (action === 'set-yagmur-requests') return setYagmurRequests_(body);
+  if (action === 'add-custom-task') return addCustomTask_(body);
+  if (action === 'remove-custom-task') return removeCustomTask_(body);
 
   return jsonOut_({ ok: false, error: 'unknown_action' });
+}
+
+// A study added outside the fixed weekly schedule. Owner is always the signed-in
+// person, never taken from the client, same as addItem_ below.
+function addCustomTask_(body) {
+  var person = personForToken_(body.token);
+  if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
+  var activity = String(body.activity || '').trim().slice(0, 80);
+  var hours = Number(body.hours);
+  if (!body.date || !activity) return jsonOut_({ ok: false, error: 'missing_fields' });
+  if (!hours || hours <= 0 || hours > 24) return jsonOut_({ ok: false, error: 'bad_hours' });
+  var id = Utilities.getUuid();
+  customTasksSheet_().appendRow([id, body.date, person, activity, hours, person, new Date()]);
+  return jsonOut_({ ok: true, id: id });
+}
+
+function removeCustomTask_(body) {
+  var person = personForToken_(body.token);
+  if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
+  var sheet = customTasksSheet_();
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === body.id) {
+      if (data[i][2] !== person) return jsonOut_({ ok: false, error: 'not_yours' });
+      sheet.deleteRow(i + 1);
+      return jsonOut_({ ok: true });
+    }
+  }
+  return jsonOut_({ ok: true });
 }
 
 // Yağmur's own running list of site-edit requests — only she can write it, Berkay
