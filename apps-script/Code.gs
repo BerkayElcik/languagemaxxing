@@ -21,6 +21,20 @@ function jsonOut_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
+function isoDate_(d) {
+  return d.getFullYear() + '-' + ('' + (d.getMonth() + 1)).padStart(2, '0') + '-' + ('' + d.getDate()).padStart(2, '0');
+}
+
+// A cell holding a bare 'YYYY-MM-DD' string (nothing else in it) can get silently
+// reinterpreted by Sheets as a real Date — its default "Automatic" format applies the
+// same smart-parsing whether the value arrived by someone typing it or by appendRow —
+// which would then serialize as a full ISO timestamp and never string-match the
+// client's own plain dates. Normalizing here self-heals any row already affected,
+// without needing to touch the sheet by hand.
+function asISODate_(value) {
+  return value instanceof Date ? isoDate_(value) : String(value);
+}
+
 function sheet_(name, headerRow) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(name);
@@ -251,7 +265,7 @@ function doGet(e) {
     var customTasks = [];
     for (var m = 1; m < ctData.length; m++) {
       var cr = ctData[m];
-      customTasks.push({ id: cr[0], date: cr[1], owner: cr[2], activity: cr[3], hours: cr[4] });
+      customTasks.push({ id: cr[0], date: asISODate_(cr[1]), owner: cr[2], activity: cr[3], hours: cr[4] });
     }
     return jsonOut_({ customTasks: customTasks });
   }
@@ -297,7 +311,11 @@ function addCustomTask_(body) {
   if (!body.date || !activity) return jsonOut_({ ok: false, error: 'missing_fields' });
   if (!hours || hours <= 0 || hours > 24) return jsonOut_({ ok: false, error: 'bad_hours' });
   var id = Utilities.getUuid();
-  customTasksSheet_().appendRow([id, body.date, person, activity, hours, person, new Date()]);
+  var sheet = customTasksSheet_();
+  sheet.appendRow([id, body.date, person, activity, hours, person, new Date()]);
+  // Force the Date cell to plain text (see asISODate_) — otherwise Sheets' "Automatic"
+  // format can store it as a real Date the moment it's written, not just when read back.
+  sheet.getRange(sheet.getLastRow(), 2).setNumberFormat('@').setValue(body.date);
   return jsonOut_({ ok: true, id: id });
 }
 
