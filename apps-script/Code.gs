@@ -542,3 +542,27 @@ function removeItem_(body) {
   sheet.deleteRow(rowIndex);
   return jsonOut_({ ok: true });
 }
+
+// ---------- one-off developer cleanup — NOT reachable from the website ----------
+//
+// Clears the duplicate "Speaking lesson" entries Yağmur accidentally added several
+// times for Monday 2026-09-28, back before the date-matching bug (see asISODate_) was
+// fixed — each click looked like nothing happened, so it silently created more than one.
+// This has no doGet/doPost route, so nobody can trigger it from the site; run it by hand
+// from this editor: pick "oneOff_removeDuplicateSpeakingLessons" in the function dropdown
+// above and click Run, then check View → Logs for how many rows it removed. Delete this
+// function afterward — it's a one-time fix, not something that should stay around.
+function oneOff_removeDuplicateSpeakingLessons() {
+  var targetDate = '2026-09-28'; // double check this is the right Monday before running
+  var sheet = customTasksSheet_();
+  var data = sheet.getDataRange().getValues();
+  var removed = 0;
+  for (var i = data.length - 1; i >= 1; i--) {
+    var row = data[i];
+    if (asISODate_(row[1]) === targetDate && row[2] === 'yagmur' && row[3] === 'Speaking lesson') {
+      sheet.deleteRow(i + 1);
+      removed++;
+    }
+  }
+  Logger.log('Removed ' + removed + ' row(s).');
+}
