@@ -17,6 +17,10 @@ var ALLOWED = {
   'yagmurkaran6@gmail.com': 'yagmur',
 };
 
+// An admin secret set as a Script Property (never in this file — see personForRequest_
+// and getAdminSecret_ below) lets the site's maintainer act as either person to fix
+// data directly, without either of you needing to sign in and do it yourselves.
+
 function jsonOut_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -222,6 +226,28 @@ function personForToken_(token) {
   return null;
 }
 
+var PERSON_VALUES = ['berkay', 'yagmur'];
+
+// Not in source on purpose — this repo is public, so a secret checked in here would be
+// visible to anyone on GitHub. Set it once via Project Settings → Script Properties
+// (key "ADMIN_SECRET") in the Apps Script editor instead; it never touches git.
+function getAdminSecret_() {
+  return PropertiesService.getScriptProperties().getProperty('ADMIN_SECRET');
+}
+
+// Every write action resolves "who is this?" through here instead of calling
+// personForToken_ directly — a request carrying the right admin secret plus an explicit
+// person acts as that person, letting the site's maintainer fix either side's data (e.g.
+// a stuck duplicate) without needing either of you to sign in and do it. A normal
+// session token still works exactly as before when no secret is sent.
+function personForRequest_(body) {
+  var adminSecret = getAdminSecret_();
+  if (adminSecret && body.adminSecret === adminSecret && PERSON_VALUES.indexOf(body.person) !== -1) {
+    return body.person;
+  }
+  return personForToken_(body.token);
+}
+
 function sideForPerson_(person) { return person === 'berkay' ? 'left' : 'right'; }
 
 function canEditItemSide_(itemSide, person) { return itemSide === sideForPerson_(person); }
@@ -304,7 +330,7 @@ function doPost(e) {
 // A study added outside the fixed weekly schedule. Owner is always the signed-in
 // person, never taken from the client, same as addItem_ below.
 function addCustomTask_(body) {
-  var person = personForToken_(body.token);
+  var person = personForRequest_(body);
   if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
   var activity = String(body.activity || '').trim().slice(0, 80);
   var hours = Number(body.hours);
@@ -320,7 +346,7 @@ function addCustomTask_(body) {
 }
 
 function removeCustomTask_(body) {
-  var person = personForToken_(body.token);
+  var person = personForRequest_(body);
   if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
   var sheet = customTasksSheet_();
   var data = sheet.getDataRange().getValues();
@@ -337,7 +363,7 @@ function removeCustomTask_(body) {
 // Yağmur's own running list of site-edit requests — only she can write it, Berkay
 // only reads it (enforced here, not just hidden in the UI).
 function setYagmurRequests_(body) {
-  var person = personForToken_(body.token);
+  var person = personForRequest_(body);
   if (person !== 'yagmur') return jsonOut_({ ok: false, error: 'not_authenticated' });
   setSetting_('YagmurRequests', body.text || '');
   return jsonOut_({ ok: true });
@@ -346,7 +372,7 @@ function setYagmurRequests_(body) {
 // Either of you can push the program's end date out by a month — shared, not
 // per-side, since it changes what week range is navigable for both of you.
 function extendProgram_(body) {
-  var person = personForToken_(body.token);
+  var person = personForRequest_(body);
   if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
   var current = getSetting_('ProgramEnd', DEFAULT_PROGRAM_END);
   var next = addOneMonth_(current);
@@ -360,7 +386,7 @@ function extendProgram_(body) {
 // completion logic (duplicating it here would mean keeping two copies of the schedule
 // in sync), and this is a two-person trust-based tool, not an adversarial one.
 function setWeekReward_(body) {
-  var person = personForToken_(body.token);
+  var person = personForRequest_(body);
   if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
   if (!body.week || !body.type || !body.content) return jsonOut_({ ok: false, error: 'missing_fields' });
   var sheet = weekRewardsSheet_();
@@ -376,7 +402,7 @@ function setWeekReward_(body) {
 }
 
 function removeWeekReward_(body) {
-  var person = personForToken_(body.token);
+  var person = personForRequest_(body);
   if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
   if (!body.week) return jsonOut_({ ok: false, error: 'missing_week' });
   var sheet = weekRewardsSheet_();
@@ -401,7 +427,7 @@ function uploadsFolder_() {
 // Saves a photo picked from someone's device (sent as base64) to Drive and returns a
 // URL the board can hotlink as an <img src>.
 function uploadImage_(body) {
-  var person = personForToken_(body.token);
+  var person = personForRequest_(body);
   if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
   if (!body.data) return jsonOut_({ ok: false, error: 'missing_data' });
   var bytes;
@@ -468,7 +494,7 @@ function verifyCode_(body) {
 }
 
 function toggleCompletion_(body) {
-  var person = personForToken_(body.token);
+  var person = personForRequest_(body);
   if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
   var key = body.key;
   if (!key) return jsonOut_({ ok: false, error: 'missing_key' });
@@ -485,7 +511,7 @@ function toggleCompletion_(body) {
 }
 
 function addItem_(body) {
-  var person = personForToken_(body.token);
+  var person = personForRequest_(body);
   if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
   var type = (body.type === 'text' || body.type === 'audio') ? body.type : 'image';
   var id = Utilities.getUuid();
@@ -511,7 +537,7 @@ function findItemRow_(sheet, id) {
 }
 
 function updateItem_(body) {
-  var person = personForToken_(body.token);
+  var person = personForRequest_(body);
   if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
   var sheet = boardSheet_();
   var rowIndex = findItemRow_(sheet, body.id);
@@ -531,7 +557,7 @@ function updateItem_(body) {
 }
 
 function removeItem_(body) {
-  var person = personForToken_(body.token);
+  var person = personForRequest_(body);
   if (!person) return jsonOut_({ ok: false, error: 'not_authenticated' });
   var sheet = boardSheet_();
   var rowIndex = findItemRow_(sheet, body.id);

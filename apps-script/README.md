@@ -25,6 +25,18 @@ own tabs automatically the first time each is used.
    };
    ```
 
+## 2b. (Optional) Set an admin secret
+
+This lets Claude fix either person's data directly — e.g. removing a stuck duplicate —
+without needing you or Yağmur to sign in and do it. Skip this if you don't want that.
+
+1. In the Apps Script editor, click the gear icon (**Project Settings**) in the left sidebar.
+2. Scroll to **Script Properties** → **Add script property**.
+3. Property: `ADMIN_SECRET`. Value: a long random string (Claude can generate one for
+   you). Save.
+4. Tell Claude the value in chat — it's never written into `Code.gs` or committed to git,
+   since this repo is public and anyone could read a secret checked in here.
+
 ## 3. Deploy it as a Web App
 
 1. Click **Deploy → New deployment**.
